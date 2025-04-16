@@ -129,7 +129,6 @@ public class PasswordRecoveryController {
      * @param model The Model object to bind to the view.
      * @return A ModelAndView object that includes the view name and model attributes.
      * @throws MalformedURLException If the password recovery URL is not a valid URL.
-     * @throws UnsupportedEncodingException If the character encoding is not supported.
      */
     @PostMapping("/forgotPassword")
     public ModelAndView passwordForgot(HttpServletRequest request, @RequestParam("username") String username,
