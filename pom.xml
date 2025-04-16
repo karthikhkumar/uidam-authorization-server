@@ -25,6 +25,7 @@
     <packaging>jar</packaging>
     <name>uidam-authorization-server</name>
     <description>Project for Authorization Server</description>
+    <url>https://github.com/eclipse-ecsp/uidam-authorization-server</url>
 
     <scm>
         <connection>scm:git:https://github.com/eclipse-ecsp/uidam-authorization-server.git</connection>
