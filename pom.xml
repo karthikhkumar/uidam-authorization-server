@@ -81,6 +81,20 @@
         </sonar.java.checkstyle.reportPaths>
         <checkstyle.version>10.13.0</checkstyle.version>
         <maven.checkstyle.version>3.3.1</maven.checkstyle.version>
+        <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
+        <maven-javadoc-plugin.version>3.11.2</maven-javadoc-plugin.version>
+        <license-tool-plugin.version>1.1.0</license-tool-plugin.version>
+        <skipDash>true</skipDash>
+        <failWhenReviewNeeded>false</failWhenReviewNeeded>
+        <maven-gpg-plugin.version>3.1.0</maven-gpg-plugin.version>
+        <skipCheckstyle>false</skipCheckstyle>
+        <skipJavadocs>false</skipJavadocs>
+        <skipSource>false</skipSource>
+        <skipGpgSign>true</skipGpgSign>
+        <nexus-staging-maven-plugin.version>1.6.13</nexus-staging-maven-plugin.version>
+        <skipNexusStaging>true</skipNexusStaging>
+
+
     </properties>
 
     <dependencyManagement>
