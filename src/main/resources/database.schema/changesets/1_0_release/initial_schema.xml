@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  ~ Copyright (c) 2023-24 Harman International
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~  http://www.apache.org/licenses/LICENSE-2.0
+  ~      
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  ~
+  ~ SPDX-License-Identifier: Apache-2.0
+  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~-->
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.9.xsd">
+
+    <changeSet id="install-uuid-authorization" author="Akshay Mathur">
+        <sql>
+            CREATE
+            EXTENSION IF NOT EXISTS "uuid-ossp";
+        </sql>
+    </changeSet>
+
+    <changeSet id="create-uuid-v4-function" author="Aakanksha Tejwani">
+        <sql>
+            CREATE OR REPLACE FUNCTION ${schema}.uuid_generate_v4()
+            RETURNS uuid
+            LANGUAGE c
+            PARALLEL SAFE STRICT
+            AS '$libdir/uuid-ossp', $function$uuid_generate_v4$function$
+            ;
+        </sql>
+    </changeSet>
+
+    <changeSet id="create-uuid-function" author="Aakanksha Tejwani">
+        <createProcedure>
+            <![CDATA[
+            CREATE
+            OR REPLACE FUNCTION
+            ${schema}
+            .
+            get_uuid
+            (
+            )
+            RETURNS
+            numeric
+            LANGUAGE
+            'plpgsql'
+            COST
+            100
+            VOLATILE
+            PARALLEL
+            UNSAFE
+            AS
+            $BODY$
+            DECLARE
+            MAX_NUMERIC_VALUE NUMERIC(38) := 99999999999999999999999999999999999999;
+        ASCII_OF_0
+            int := 48;
+        ASCII_OF_9
+            int := 57;
+        ASCII_OF_A
+            int := 97;
+        source
+            VARCHAR(64);
+        dest
+            NUMERIC(38) := 0;
+        ch
+            int;
+        char_value
+            int;
+            BEGIN
+        source
+            := ${schema}.uuid_generate_v4();
+        source
+            := replace(source, '-', '');
+            for indx in 1..char_length(source) LOOP
+            ch := ascii(substr(source, indx, 1));
+            if
+            (ch >= ASCII_OF_0 AND ch <= ASCII_OF_9) then
+                char_value := ch - ASCII_OF_0;
+            else
+                char_value := ch - ASCII_OF_A + 10;
+            end if;
+            if
+            indx = 1 then
+                dest := char_value;
+            else
+                dest := dest * 10 + char_value;
+            end if;
+            while
+            dest > MAX_NUMERIC_VALUE LOOP
+                dest := floor(dest / 10);
+            end loop;
+            end loop;
+            return dest;
+            END;
+            $BODY$;
+            ]]>
+        </createProcedure>
+    </changeSet>
+
+	<changeSet id="authorization" author="Akshay Mathur">
+        <createTable tableName="authorization">
+            <column name="ID" type="${STRING_SMALL}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="REGISTERED_CLIENT_ID" type="${STRING_SMALL}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="PRINCIPAL_NAME" type="${STRING_SMALL}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="AUTHORIZATION_GRANT_TYPE" type="${STRING_SMALL}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="AUTHORIZED_SCOPES" type="${STRING_BIG}"/>
+            <column name="ATTRIBUTES" type="${STRING_VERY_VERY_HUGE}"/>
+            <column name="STATE" type="${STRING_MEDIUM}"/>
+            <column name="AUTHORIZATION_CODE_VALUE" type="${STRING_VERY_VERY_HUGE}"/>
+            <column name="AUTHORIZATION_CODE_ISSUED_AT" type="${DATE_TIME}"/>
+            <column name="AUTHORIZATION_CODE_EXPIRES_AT" type="${DATE_TIME}"/>
+            <column name="AUTHORIZATION_CODE_METADATA" type="${STRING_VERY_VERY_HUGE}"/>
+            <column name="ACCESS_TOKEN_VALUE" type="${STRING_VERY_VERY_HUGE}"/>
+            <column name="ACCESS_TOKEN_ISSUED_AT" type="${DATE_TIME}"/>
+            <column name="ACCESS_TOKEN_EXPIRES_AT" type="${DATE_TIME}"/>
+            <column name="ACCESS_TOKEN_METADATA" type="${STRING_VERY_VERY_HUGE}"/>
+            <column name="ACCESS_TOKEN_TYPE" type="${STRING_SMALL}"/>
+            <column name="ACCESS_TOKEN_SCOPES" type="${STRING_BIG}"/>
+            <column name="REFRESH_TOKEN_VALUE" type="${STRING_VERY_VERY_HUGE}"/>
+            <column name="REFRESH_TOKEN_ISSUED_AT" type="${DATE_TIME}"/>
+            <column name="REFRESH_TOKEN_EXPIRES_AT" type="${DATE_TIME}"/>
+            <column name="REFRESH_TOKEN_METADATA" type="${STRING_VERY_VERY_HUGE}"/>
+            <column name="OIDC_ID_TOKEN_CLAIMS" type="${STRING_VERY_BIG}"/>
+            <column name="OIDC_ID_TOKEN_VALUE" type="${STRING_VERY_VERY_HUGE}"/>
+            <column name="OIDC_ID_TOKEN_ISSUED_AT" type="${DATE_TIME}"/>
+            <column name="OIDC_ID_TOKEN_EXPIRES_AT" type="${DATE_TIME}"/>
+            <column name="OIDC_ID_TOKEN_METADATA" type="${STRING_VERY_VERY_HUGE}"/>
+            <column name="USER_CODE_VALUE" type="${STRING_VERY_VERY_HUGE}"/>
+            <column name="USER_CODE_ISSUED_AT" type="${DATE_TIME}"/>
+            <column name="USER_CODE_EXPIRES_AT" type="${DATE_TIME}"/>
+            <column name="USER_CODE_METADATA" type="${STRING_VERY_VERY_HUGE}"/>
+            <column name="DEVICE_CODE_VALUE" type="${STRING_VERY_VERY_HUGE}"/>
+            <column name="DEVICE_CODE_ISSUED_AT" type="${DATE_TIME}"/>
+            <column name="DEVICE_CODE_EXPIRES_AT" type="${DATE_TIME}"/>
+            <column name="DEVICE_CODE_METADATA" type="${STRING_VERY_VERY_HUGE}"/>
+        </createTable>
+        <addPrimaryKey columnNames="ID" constraintName="PK_AUTHORIZATION"
+                       tableName="authorization"/>
+        <createIndex indexName="AUTHORIZATION_CLIENT_ID_IND" tableName="authorization">
+            <column name="REGISTERED_CLIENT_ID"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="authorization-consent" author="Akshay Mathur">
+        <createTable tableName="authorization_consent">
+            <column name="REGISTERED_CLIENT_ID" type="${STRING_SMALL}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="PRINCIPAL_NAME" type="${STRING_SMALL}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="AUTHORITIES" type="${STRING_BIG}">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey columnNames="REGISTERED_CLIENT_ID, PRINCIPAL_NAME"
+                       constraintName="PK_AUTHORIZATION_CONSENT"
+                       tableName="authorization_consent"/>
+        <createIndex indexName="AUTHORIZATION_CONSENT_CLIENT_ID_IND" tableName="authorization_consent">
+        <column name="REGISTERED_CLIENT_ID"/>
+        </createIndex>
+    </changeSet>
+    
+    <changeSet id="authorization-security-context" author="Akshay Mathur">
+        <createTable tableName="authorization_security_context">
+            <column name="ID" type="${BIG_INTEGER}" defaultValueComputed="${UUID_FUNCTION}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="PRINCIPAL" type="${STRING_MID_HUGE}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ACCOUNT_NAME" type="${STRING_SMALL}"/>
+            <column name="AUTHORIZED_CLIENT_REGISTRATION_ID" type="${STRING_SMALL}"/>
+            <column name="AUTHENTICATED" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+            <column name="AUTHORITIES" type="${STRING_BIG}"/>
+            <column name="REMOTE_IP_ADDRESS" type="${STRING_SMALL}"/>
+            <column name="SESSION_ID" type="${STRING_SMALL}">
+				<constraints nullable="false" unique="true"/>
+			</column>
+            <column name="CREATED_DATE" type="${DATE_TIME_TZ}" defaultValueComputed="${SYSTEM_DATETIME}">
+				<constraints nullable="false"/>
+			</column>
+            <column name="UPDATED_DATE" type="${DATE_TIME_TZ}" defaultValueComputed="${SYSTEM_DATETIME}">
+				<constraints nullable="false"/>
+			</column>
+        </createTable>
+        <addPrimaryKey columnNames="ID"
+                       constraintName="PK_AUTHORIZATION_SECURITY_CONTEXT"
+                       tableName="authorization_security_context"/>
+    </changeSet>
+
+    <changeSet id="authorization-request" author="Akshay Mathur">
+        <createTable tableName="AUTHORIZATION_REQUEST">
+            <column name="ID" type="${BIG_INTEGER}" defaultValueComputed="${UUID_FUNCTION}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="STATE" type="${STRING_MEDIUM}"/>
+            <column name="ADDITIONAL_PARAMETERS" type="${STRING_BIG}"/>
+            <column name="AUTHORIZATION_REQUEST_URI" type="${STRING_VERY_HUGE}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="ATTRIBUTES" type="${STRING_BIG}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="SESSION_ID" type="${STRING_SMALL}">
+                <constraints nullable="false" unique="true"/>
+            </column>
+            <column name="CREATED_DATE" type="${DATE_TIME_TZ}" defaultValueComputed="${SYSTEM_DATETIME}">
+                <constraints nullable="false"/>
+            </column>
+            <column name="UPDATED_DATE" type="${DATE_TIME_TZ}"/>
+        </createTable>
+        <addPrimaryKey columnNames="ID"
+                       constraintName="PK_AUTHORIZATION_REQUEST"
+                       tableName="AUTHORIZATION_REQUEST"/>
+    </changeSet>
+    
+     <changeSet id="CLEANUP-JOB-AUDIT" author="Manoj Singh">
+        <createTable tableName="CLEANUP_JOB_AUDIT">
+            <column name="ID" type="SERIAL">
+                <constraints nullable="false"/>
+            </column>
+              <column name="RECORDS_TABLE_NAME" type="${STRING_SMALL}">
+            	<constraints nullable="false"/>
+            </column>
+            <column name="JOB_STARTED_AT" type="${DATE_TIME_TZ}">
+            	<constraints nullable="false"/>
+            </column>
+            <column name="JOB_COMPLETED_AT" type="${DATE_TIME_TZ}"/> 
+            <column name="TOTAL_EXISTING_RECORDS" type="INTEGER">
+                <constraints nullable="false"/>
+            </column>
+            <column name="TOTAL_DELETED_RECORDS" type="INTEGER"/>
+            <column name="JOB_COMPLETED" type="BOOLEAN">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        <addPrimaryKey columnNames="ID"
+                       constraintName="PK_CLEANUP__JOB_AUDIT"
+                       tableName="CLEANUP_JOB_AUDIT"/>
+    </changeSet>
+    
+</databaseChangeLog>

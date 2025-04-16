@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="ISO-8859-1">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up Form</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+	<script>
+		var onloadCallback = function() {
+            var recaptchaElement = document.getElementById('g-recaptcha');
+            if (recaptchaElement) {
+                grecaptcha.render(recaptchaElement, {
+                    'sitekey': '[[${captchaSite}]]',
+                    'callback': recaptchaCallback
+                });
+            }
+        };
+		
+		function recaptchaCallback(response) {
+            handleInputFields();
+        }
+		function validateEmail(email) {
+            const emailField = document.getElementById("email");
+            const errorField = document.getElementById("emailError");
+            const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+            if (!emailPattern.test(emailField.value)) {
+                errorField.textContent = "Please enter a valid email address.";
+                return false;
+            } else {
+                errorField.textContent = "";
+                return true;
+            }
+
+        }
+
+		function showPasswordPolicy() {
+            // Fetch and display password policy from backend
+        }
+
+		function validatePassword() {
+            const passwordField = document.getElementById("password");
+            const usernameField = document.getElementById("email");
+            const errorFieldPassword = document.getElementById("passwordError");
+            const passwordMessageList = document.getElementById("password-message").children;
+            const password = passwordField.value;
+            const username = usernameField.value;
+            const policy = {
+                minLength: '[[${pwdMin}]]',
+                maxLength: '[[${pwdMax}]]',
+                regex: '[[${pwdRegex}]]',
+                noConsecutive: true
+            };
+
+            let isValid = true;
+            let messages = [];
+            let isValidPassMin = true;
+            let isValidPassMax = true;
+            let isValidusername = true;
+            let consecutive = true;
+            let regexValid = true;
+            if (password) {
+		
+                if (password.length < policy.minLength) {
+                    messages.push(`Password should contain atleast ${policy.minLength} characters.`);
+                    isValid = false;
+                    isValidPassMin = false;
+                    passwordMessageList[1].style.color = isValidPassMin ? "green" : "red";
+                    passwordMessageList[1].querySelector('i').className = "fas fa-times";
+                } else {
+                    passwordMessageList[1].style.color = isValidPassMin ? "green" : "red";
+                    passwordMessageList[1].querySelector('i').className = "fas fa-check";
+                }
+
+               /* if (password.length > policy.maxLength) {
+                    messages.push(`Password should contain ${policy.maxLength} characters.`);
+                    isValid = false;
+                    isValidPassMax = false;
+                    passwordMessageList[2].style.color = isValidPassMax ? "green" : "red";
+                    passwordMessageList[2].querySelector('i').className = "fas fa-times";
+                } else {
+                    passwordMessageList[2].style.color = isValidPassMax ? "green" : "red";
+                    passwordMessageList[2].querySelector('i').className = "fas fa-check";
+                }*/
+
+                if (username && password.includes(username)) {
+                    messages.push("Password must not contain email/username");
+                    isValid = false;
+                    isValidusername = false;
+                    passwordMessageList[0].style.color = isValidusername ? "green" : "red";
+                    passwordMessageList[0].querySelector('i').className = "fas fa-times";
+                } else {
+                    passwordMessageList[0].style.color = isValidusername ? "green" : "red";
+                    passwordMessageList[0].querySelector('i').className = "fas fa-check";
+                }
+  
+                if (/[A-Z]/.test(password)) {
+					passwordMessageList[2].style.color = "green";
+                    passwordMessageList[2].querySelector('i').className = "fas fa-check";
+                } else {
+					messages.push("Password should contain atleast One Uppercase");
+                    isValid = false;
+                    regexValid = false;
+					passwordMessageList[2].style.color = "red";
+                    passwordMessageList[2].querySelector('i').className = "fas fa-times";
+				}
+
+				if (/[a-z]/.test(password)) {
+					passwordMessageList[3].style.color = "green";
+                    passwordMessageList[3].querySelector('i').className = "fas fa-check";
+                } else {
+					messages.push("Password should contain atleast One Lowercase");
+                    isValid = false;
+                    regexValid = false;
+					passwordMessageList[3].style.color = "red";
+                    passwordMessageList[3].querySelector('i').className = "fas fa-times";
+				}
+
+				if (/[0-9]/.test(password)) {
+					passwordMessageList[4].style.color = "green";
+                    passwordMessageList[4].querySelector('i').className = "fas fa-check";
+                } else {
+					messages.push("Password should contain atleast One Number");
+                    isValid = false;
+                    regexValid = false;
+					passwordMessageList[4].style.color = "red";
+                    passwordMessageList[4].querySelector('i').className = "fas fa-times";
+				}
+				
+				if (/[-+=!$%^&*()_|~`{}\[\]:\/;<>?,.@#'"\s]/.test(password.trim()) && !(/^\s+|\s+$/.test(password)) || password.indexOf('\\') >= 0 ) {
+					passwordMessageList[5].style.color = "green";
+                    passwordMessageList[5].querySelector('i').className = "fas fa-check";
+				} else {
+					messages.push("Password should contain atleast One special character and should not contain space");
+                    isValid = false;
+                    regexValid = false;
+					passwordMessageList[5].style.color = "red";
+                    passwordMessageList[5].querySelector('i').className = "fas fa-times";
+				}
+
+                return isValid;
+            } 
+        }
+		document.addEventListener("DOMContentLoaded", function () {
+            const passwordField = document.getElementById("password");
+			const passwordMessageList = document.getElementById("password-message").children;
+            passwordField.addEventListener("input", function () {
+				const password = document.getElementById('password').value;
+				const passwordMessages = document.querySelectorAll('#password-message li');
+				if (password === "") {
+					// Reset all message colors and icons
+					passwordMessages.forEach(function (message) {
+						message.style.color = "gray";
+						message.querySelector('i').className = "fas fa-times";
+					});
+
+					return; // Exit the function early if password is empty
+				}
+                validatePassword(passwordField.value);
+            });
+           
+        });
+		function containsConsecutiveLetters(password, username, length) {
+            for (let i = 0; i <= username.length - length; i++) {
+                const substring = username.substring(i, i + length);
+                if (password.includes(substring)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+		
+        var passwordConfirm = function() {
+            if (document.getElementById("password").value ==
+                document.getElementById("confirmPassword").value) {
+                document.getElementById("confirmPassworMessage").style.color = "Green";
+                document.getElementById("confirmPassworMessage").innerHTML = "Passwords match!"
+            } else {
+                document.getElementById("confirmPassworMessage").style.color = "Red";
+                document.getElementById("confirmPassworMessage").innerHTML = "Passwords do NOT match!"
+            }
+        }
+        
+	</script>
+
+    <script src='https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit' async defer></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+</head>
+<body>
+<div class="login-page">
+    <div th:align="center">
+        <img style="padding-bottom: 0px !important; width: 140px !important; height: 80px !important" th:src="@{/images/logo.svg}" alt="Harman" title="Harman"
+             class="logo" />
+    </div>
+    <div class="error"
+         style="text-align: center; padding-bottom: 20px; color: red; font-weight: 600; font-size: 14px;"
+         th:if="${error != null}">
+        <p class="text-danger">[[${error}]]</p>
+    </div>
+    <div class="error"
+         style="text-align: center; padding-bottom: 20px; color: red; font-weight: 600; font-size: 14px;"
+         th:if="${message != null}">
+        <p class="text-warning">[[${message}]]</p>
+    </div>
+    <div th:if="${isSignUpEnabled}">
+        <form action="/sign-up" method="post">
+		
+		    <div class="container-auth-input">
+                <label for="email" class="hidden" style="font-size: 14px; font-weight: bold; font-family: sans-serif;">Email*</label>
+                <input type="email" id="email" name="email" placeholder="Email*" th:onblur="validateEmail()"/>
+                <div id="emailError" style="color: red;"></div>
+				<div class="error-message" style="display: none; color: red; margin-top: -4px; font-size: 12px; font-weight: bold;">This is required</div>
+
+            </div>
+            <div class="container-auth-input">
+                <label for="firstName" class="hidden" style="font-size: 14px; font-weight: bold; font-family: sans-serif;">First Name*</label>
+                <input type="text" id="firstName" name="firstName" placeholder="First Name*" maxlength="50"/>
+                <div class="error-message" style="display: none; color: red; margin-top: -4px; font-size: 12px; font-weight: bold;">This is required</div>
+
+            </div>
+			<div class="container-auth-input">
+                <label for="lastName" class="hidden" style="font-size: 14px; font-weight: bold; font-family: sans-serif;">Last Name</label>
+                <input type="text" id="lastName" name="lastName" placeholder="Last Name" maxlength="50"/>
+
+            </div>
+            <div class="container-auth-input" style="margin-bottom: 5px;">
+				<label for="password" class="hidden" style="font-size: 14px; font-weight: bold; font-family: sans-serif;">Password*</label>
+				<input type="password" id="password" name="password" placeholder="Password*" onfocus="showPasswordPolicy()"  maxlength="50"/>
+				<div id="passwordError" class="error-message" style="display: none; color: red; margin-top: -4px; font-size: 12px; font-weight: bold;"></div>
+				<div class="error-message" style="display: none; color: red; margin-top: -4px; font-size: 12px; font-weight: bold;">This is required</div>
+			</div>
+			
+			<ul id="password-message">
+				<li th:each="message : ${pwdNote}">
+					<i class=""></i> <span th:text="${message}"></span>
+				</li>
+			</ul>
+			
+			<div class="container-auth-input" style="margin-bottom: 10px; margin-top: 10px;">
+				<label for="confirmPassword" class="hidden" style="font-size: 14px; font-weight: bold; font-family: sans-serif;">Confirm Password*</label>
+				<input type="password" id="confirmPassword" name="confirmPassword"  placeholder="Confirm Password*" onkeyup='passwordConfirm();'  maxlength="50"/>
+            	<div class="error-message" style="display: none; color: red; margin-top: -4px; font-size: 12px; font-weight: bold;">This is required</div>
+				<span id="confirmPassworMessage" style="margin-top: -4px; font-size: 12px; font-weight: bold;"></span>
+            
+            </div>
+			
+			<div class="container-auth-input">
+			    <div class="policy" style="margin-bottom: 5px;">
+					Please read and accept both policies before continuing.
+				</div>
+				<div class="policy-container">
+					<input type="checkbox" id="termsCheckbox" name="termsCheckbox">
+					<label for="termsCheckbox" class="policy">
+						I agree to the <a href="terms-of-use" target="_blank">Terms of Use</a> and 
+						<a href="privacy-agreement" target="_blank">Privacy Agreement</a>
+					</label>
+				</div>
+			</div>
+			
+			<div id="g-recaptcha" class="g-recaptcha col-sm-5" th:if="(true == ${isCaptchaFieldEnabled})"
+				th:attr="data-sitekey=${captchaSite}">
+			</div>
+			<input type="hidden" id="captchaToken" name="captchaToken" value="">
+			<span id="captchaError" class="alert alert-danger col-sm-4"	style="display:none"></span>	
+						
+            <div class="sign-in-custom">
+				<button id="submit" type="submit" value="Sign Up" >
+					Submit
+				</button>
+			</div>
+            <div class="container-sign-up" style="padding-top: 20px">
+                    <div class="sign-up-text-helper">
+						<div>
+							Please redirect to Login page if you already have
+						</div>
+						<div style="display: flex; justify-content: center;">
+							an account.
+						</div>
+                    </div>
+                </div>			
+        </form>
+    </div>
+	
+	<script th:inline="javascript">
+		$(document).ready(function() {
+    		function handleInputFields() {
+				var email = $('#email').val().trim();
+				var firstName = $('#firstName').val().trim();
+				var lastName = $('#lastName').val().trim();
+				var password = $('#password').val().trim();
+				var confirmPassword = $('#confirmPassword').val().trim();
+				var termsAccepted = $('#termsCheckbox').is(':checked');
+				var recaptchaResponse = $('#g-recaptcha-response').val();
+				var isCaptchaFieldEnabled = $('#g-recaptcha').length > 0;
+
+				var areFieldsFilled = email !== '' && firstName !== '' && password !== '' && confirmPassword !== '';
+
+				if (isCaptchaFieldEnabled) {
+					areFieldsFilled = areFieldsFilled && recaptchaResponse !== '';
+				}
+
+				if (areFieldsFilled && password === confirmPassword && termsAccepted) {
+					$('#submit').prop('disabled', false).addClass('enabled');
+				} else {
+					$('#submit').prop('disabled', true).removeClass('enabled');
+				}
+
+				$('.container-auth-input input').each(function () {
+					var inputField = $(this);
+					var errorMessage = inputField.siblings('.error-message');
+					var label = inputField.siblings('label');
+
+					if (inputField.val().trim() === '' && (inputField.is(':focus') || inputField.attr('data-dirty') === 'true')) {
+						errorMessage.show();
+					} else {
+						errorMessage.hide();
+					}
+
+					if (inputField.val().trim() !== '') {
+						label.removeClass('hidden');
+					} else {
+						label.addClass('hidden');
+					}
+				});
+			}
+
+			$('input[type="text"], input[type="password"], input[type="email"]').on('keyup', function() {
+				handleInputFields();
+			});
+
+			$('input[type="text"], input[type="password"], input[type="email"]').on('blur', function() {
+				$(this).attr('data-dirty', 'true');
+				var errorMessage = $(this).siblings('.error-message');
+				if ($(this).val().trim() === '') {
+					errorMessage.show();
+				} else {
+					errorMessage.hide();
+				}
+				handleInputFields();
+			});
+
+			handleInputFields();
+
+			$('.sign-up-form').on('submit', function(event) {
+				$('.container-auth-input input').each(function() {
+					var errorMessage = $(this).siblings('.error-message');
+					if ($(this).val().trim() === '') {
+						errorMessage.show();
+					} else {
+						errorMessage.hide();
+					}
+				});
+
+				if ($('.container-auth-input input').filter(function() {
+					return $(this).val().trim() === '';
+				}).length > 0) {
+					event.preventDefault();
+				}
+			});
+
+			window.handleInputFields = handleInputFields;
+		});
+	</script>
+	<script th:inline="javascript"
+		th:if="(true == ${isCaptchaFieldEnabled})">
+
+		window.addEventListener('load', () => {
+			const $recaptcha = document.querySelector('#g-recaptcha-response');
+			if ($recaptcha) {
+				$recaptcha.setAttribute('required', 'required');
+			}
+		})
+	</script>
+
+
+</div>
+<div class="rights" th:fragment="footer">
+    ©<script>document.write(new Date().getFullYear());</script> HARMAN International. All Rights Reserved.
+</div>
+</body>
+</html>

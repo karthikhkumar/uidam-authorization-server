@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="https://www.thymeleaf.org">
+
+<head>
+  <meta charset="ISO-8859-1">
+  <title>RESET PASSWORD</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" th:href="@{/css/style.css}">
+
+  <script src='https://www.google.com/recaptcha/api.js'></script>
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+</head>
+
+<body>
+  <div class="home-container">
+    <div th:align="center">
+      <img th:src="@{/images/logo.svg}" alt="Harman" title="Harman" class="logo1" th:width="200" th:height="200" />
+    </div>
+    <div class="login-header">Reset Password</div>
+    <br>
+    <div style="text-align: center; padding-bottom: 20px; color: red; font-weight: 600; font-size: 14px;"
+      th:if="${error != null}">
+      <p class="text-danger">[[${error}]]</p>
+    </div>
+    <div style="text-align: center; padding-bottom: 20px; font-weight: 600; font-size: 14px;"
+      th:if="${message != null}">
+      <p class="text-warning">[[${message}]]</p>
+    </div>
+  </div>
+  <div class="rights" th:fragment="footer">
+    ©
+    <script>document.write(new Date().getFullYear());</script> HARMAN International. All Rights Reserved.
+  </div>
+
+</body>
+
+</html>
