@@ -43,7 +43,7 @@ jobs:
 
   publish_artifacts:
     needs: extract_version
-    uses: eclipse-ecsp/.github/.github/workflows/workflow-publish-artifacts.yml@main
+    uses: eclipse-ecsp/.github/.github/workflows/workflow-publish-artifacts.yml@debug-enabled
     secrets: inherit
     with:
       release_version: ${{ needs.extract_version.outputs.release_version }}
