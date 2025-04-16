@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="https://www.thymeleaf.org">
+<head>
+    <title>Log In</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+	<meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+		var onloadCallback = function() {
+            var recaptchaElement = document.getElementById('g-recaptcha');
+            if (recaptchaElement) {
+                grecaptcha.render(recaptchaElement, {
+                    'sitekey': '[[${captchaSite}]]',
+                    'callback': recaptchaCallback
+                });
+            }
+        };
+		
+		function recaptchaCallback(response) {
+            handleInputFields();
+        }
+	</script>
+    <script src='https://www.google.com/recaptcha/api.js?onload=onloadCallback&render=explicit' async defer></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+</head>
+<body>
+<div class="login-page">
+    <div th:align="center">
+        <img th:src="@{/images/logo.svg}" alt="Harman" title="Harman" class="logo"/>
+    </div>
+    <div>
+        <div class="error" style="text-align: center; padding-bottom: 20px; color: red; font-weight: 600; font-size: 14px;" th:if="${param.error}">
+            <p th:text="${session['SPRING_SECURITY_LAST_EXCEPTION'].message}"></p>
+        </div>
+
+        <div class="error" style="text-align: center; padding-bottom: 20px; color: red; font-weight: 600; font-size: 14px;" th:if="${param.logout}">
+            You have been logged out.
+        </div>
+        <div th:if="true == ${isInternalLoginEnabled}">
+            <form  class="login-form" th:action="@{/login}" method="post">
+                <div class="container-auth-input">
+                    <label for="username" class="hidden" style="font-size: 14px; font-weight: bold; font-family: sans-serif;">Username*</label>
+                    <input type="text" id="username" name="username" placeholder="Username*"/>
+                    <div class="error-message" style="display: none; color: red; margin-top: -4px; font-size: 12px; font-weight: bold;">This is required</div>
+
+                </div>
+                <div class="container-auth-input">
+                    <label for="password" class="hidden" style="font-size: 14px; font-weight: bold; font-family: sans-serif;">Password*</label>
+                    <input type="password" id="password" name="password"  placeholder="Password*"/>
+                    <div class="error-message" style="display: none; color: red; margin-top: -4px; font-size: 12px; font-weight: bold;">This is required</div>
+
+                </div>
+                <div class="container-auth-input2" th:if="true == ${isAccountFieldEnabled}">
+                    <label for="account_name" class="hidden" style="font-size: 14px; font-weight: bold; font-family: sans-serif;">Account Name</label>
+                    <input type="text" id="account_name" name="account_name" th:pattern="${T(org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants).ACC_NAME_REGEX}" placeholder="Account Name"/>
+
+                </div>
+
+                <div id="g-recaptcha" class="g-recaptcha col-sm-5" th:if="(true == ${isCaptchaFieldEnabled})"
+                     th:attr="data-sitekey=${captchaSite}">
+                </div>
+                <span id="captchaError" class="alert alert-danger col-sm-4"
+                      style="display:none"></span>
+
+                <div class="sign-in-custom">
+                    <button id="submitLogin" type="submit" value="Log in" th:disabled="${#strings.isEmpty(username) or #strings.isEmpty(password) or #strings.isEmpty(account_name)}">
+                        <div class="text-button-auth">Log in</div>
+                    </button>
+                </div>
+                <div class="link-forgot-password">
+                    <a href="recovery">Forgot Password?</a>
+                </div>
+                <div class="container-sign-up" th:if="${isSignUpEnabled}">
+                    <div class="sign-up-text-helper">
+                        Don't have an account yet?
+                    </div>
+                    <div class="sign-up-link">
+                        <a id="sign-up" href="sign-up">Sign Up Here</a>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+		<div th:if="(true == ${isExternalIdpEnabled} and false == ${isIDPAutoRedirectionEnabled}) or
+        (true == ${isInternalLoginEnabled} and true == ${isExternalIdpEnabled} and true == ${isIDPAutoRedirectionEnabled})">
+			<div style="text-align: center;">
+				<div class="login-header">Log in via...</div>
+				<div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
+					<div th:each="externalIdp: ${externalIdpList}">
+						<a class="btn btn-light"
+						   th:href="@{${externalIdpAuthorizationUri} + ${externalIdp.getRegistrationId()}}"
+						   role="link"
+						   style="display: flex; align-items: center; margin: 10px;">
+							<img th:src="@{'/images/' + ${#strings.toLowerCase(externalIdp.getClientName())} + '.png'}" width="20"
+								 style="margin-right: 5px;" th:alt="'Log in with ' + ${externalIdp.getClientName()}"/>
+							<span style="font-family:sans-serif;" th:text="${externalIdp.getClientName()}"></span>
+						</a>
+					</div>
+				</div>
+			</div>
+		</div>
+
+        <div th:if="false == ${isInternalLoginEnabled} and true == ${isExternalIdpEnabled} and true == ${isIDPAutoRedirectionEnabled}">
+            <h3 th:align="center">Redirecting...</h3>
+            <tr th:each="externalIdp: ${externalIdpList}">
+                <meta http-equiv="refresh"
+                      th:content="'0; url=' + ${externalIdpAuthorizationUri} + ${externalIdp.getRegistrationId()}">
+            </tr>
+
+        </div>
+    </div>
+
+
+    <script th:inline="javascript">
+        $(document).ready(function() {
+
+            function handleInputFields() {
+                var username = $('#username').val().trim();
+                var password = $('#password').val().trim();
+                var accountName = $('#account_name').val().trim();
+                var recaptchaResponse = $('#g-recaptcha-response').val();
+                var isCaptchaFieldEnabled = $('#g-recaptcha').length > 0;
+
+                var areFieldsFilled = username !== '' && password !== '';
+
+                if (isCaptchaFieldEnabled) {
+                    areFieldsFilled = areFieldsFilled && recaptchaResponse !== '';
+                }
+
+                if (areFieldsFilled) {
+                    $('#submitLogin').prop('disabled', false).addClass('enabled');
+                } else {
+                    $('#submitLogin').prop('disabled', true).removeClass('enabled');
+                }
+
+                $('.container-auth-input input,.container-auth-input2 input').each(function () {
+                    var inputField = $(this);
+                    var errorMessage = inputField.siblings('.error-message');
+                    var label = inputField.siblings('label');
+
+                    if (inputField.val().trim() === '' && (inputField.is(':focus') || inputField.attr('data-dirty') === 'true')) {
+                        errorMessage.show();
+                    } else {
+                        errorMessage.hide();
+                    }
+
+                    if (inputField.val().trim() !== '') {
+                        label.removeClass('hidden');
+                    } else {
+                        label.addClass('hidden');
+                    }
+                });
+            }
+
+
+            $('input[type="text"], input[type="password"]').on('keyup', function() {
+                handleInputFields();
+            });
+
+            $('input[type="text"], input[type="password"]').on('blur', function() {
+                $(this).attr('data-dirty', 'true');
+                var errorMessage = $(this).siblings('.error-message');
+                if ($(this).val().trim() === '') {
+                    errorMessage.show();
+                } else {
+                    errorMessage.hide();
+                }
+                handleInputFields();
+            });
+
+            handleInputFields();
+
+            var errorMessage = $('.error').text().trim();
+            if (errorMessage === "Consecutive log-in failures exceeded the maximum allowed login attempt. Your account has been locked, Please contact admin!") {
+                freezeUI();
+            }
+
+            function freezeUI() {
+                $('input[type="text"]').prop('disabled', true);
+                $('input[type="password"]').prop('disabled', true);
+                $('#submitLogin').prop('disabled', true);
+                $('#g-recaptcha-response').hide();
+            }
+
+            $('.login-form').on('submit', function(event) {
+                $('.container-auth-input input').each(function() {
+                    var errorMessage = $(this).siblings('.error-message');
+                    if ($(this).val().trim() === '') {
+                        errorMessage.show();
+                    } else {
+                        errorMessage.hide();
+                    }
+                });
+
+                if ($('.container-auth-input input').filter(function() {
+                    return $(this).val().trim() === '';
+                }).length > 0) {
+                    event.preventDefault();
+                }
+            });
+
+            window.handleInputFields = handleInputFields;
+        });
+    </script>
+
+    <script th:inline="javascript" th:if="(true == ${isCaptchaFieldEnabled})">
+
+        window.addEventListener('load', () => {
+            const $recaptcha = document.querySelector('#g-recaptcha-response');
+            if ($recaptcha) {
+                $recaptcha.setAttribute('required', 'required');
+            }
+        })
+
+    </script>
+
+</div>
+
+<div class="rights" th:fragment="footer">
+    © <script>document.write(new Date().getFullYear());</script> HARMAN International. All Rights Reserved.
+</div>
+</body>
+</html>

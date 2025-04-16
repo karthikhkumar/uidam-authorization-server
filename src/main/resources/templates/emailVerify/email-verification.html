@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="https://www.thymeleaf.org">
+
+<head>
+    <meta charset="ISO-8859-1">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Verification</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <script src='https://www.google.com/recaptcha/api.js'></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+</head>
+
+<body>
+    <div class="login-page">
+
+        <div th:align="center">
+            <img th:src="@{/images/logo.svg}" alt="Harman" title="Harman" class="logo" />
+        </div>
+
+        <div>
+            <div th:if="${success} == 'true'">
+                <div class="row mt-2">
+                    <div class="col-1">
+                        <img src="/images/success.png">
+                    </div>
+                    <div class="col">
+                        <div class="row">
+                            <h1 th:text="#{mail.thanks}" />
+                        </div>
+                        <div class="row">
+                            <h4 th:text="#{mail.verification.success.message}" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div th:if="${success} == 'error'">
+                <div class="row mt-2">
+                    <div class="col-1">
+                        <img src="/images/error.png" height="80" width="80">
+                    </div>
+                    <div class="col">
+                        <div class="row">
+                            <h1 th:text="#{mail.sorry}" />
+                        </div>
+                        <div class="row">
+                            <h4 th:text="#{mail.verification.failure.message}" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div th:if="${success} == 'false'">
+                <div class="row mt-2">
+                    <div class="col-1">
+                        <img src="/images/error.png" height="80" width="80">
+                    </div>
+                    <div class="col">
+                        <div class="row">
+                            <h1 th:text="#{mail.sorry}" />
+                        </div>
+                        <div class="row">
+                            <h4>Your token is expired/invalid! Please contact administrator.</h4>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- footer -->
+
+        <div class="rights" th:fragment="footer">
+            ©
+            <script>document.write(new Date().getFullYear());</script> HARMAN International. All Rights Reserved.
+        </div>
+</body>
+
+</html>

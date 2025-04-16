@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Created</title>
+	<link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+	<div class="home-container">
+	    <div th:align="center">
+			<img style="padding-bottom: 30px !important; width: 140px !important; height: 80px !important" th:src="@{/images/logo.svg}" alt="Harman" title="Harman"
+				 class="logo" />
+		</div>
+	    <div class="success-title">CONGRATULATIONS!</div>
+		<div th:align="center">
+			<img th:src="@{/images/check-mark.svg}" alt="Harman" title="Harman"
+				 class="success-image" />
+		</div>
+		<div class="success-title">User Created Successfully</div>
+		<p class="success-message" th:text="${message}"></p>
+		<div class="return-to-login">Please redirect to Login page</div>
+	</div>
+	<div class="rights" th:fragment="footer">
+    © <script>document.write(new Date().getFullYear());</script> HARMAN International. All Rights Reserved.
+	</div> 
+</body>
+</html>

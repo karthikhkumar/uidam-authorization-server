@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en"
+      xmlns="http://www.w3.org/1999/xhtml" xmlns:th="https://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>UIDAM</title>
+    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-/Y6pD6FV/Vv2HJnA6t+vslU6fwYXjCFtcEpHbNJ0lyAFsXTsjBbfaDjzALeQsN6M" crossorigin="anonymous">
+    <link rel="stylesheet" th:href="@{/css/style.css}" >
+    
+</head>
+<body>
+	<div class="home-container">
+		<h1 th:align="center">
+			<img th:src="@{/images/logo.svg}" alt="Harman" title="Harman" class="logo1" th:width="200" th:height="200"/>
+		</h1>
+		<h2>Thanks for Logging into UIDAM</h2>
+		<br>
+		<p>This is the default landing page. If you have initiated login from any of the portal or apps then please try to re-initiate the login or contact respective Portal/App administrators.
+		</p>
+		</div>
+	</div>
+	<div class="rights" th:fragment="footer">
+    © <script>document.write(new Date().getFullYear());</script> HARMAN International. All Rights Reserved.
+	</div>
+</body>
+</html>
