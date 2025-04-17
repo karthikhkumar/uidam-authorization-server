@@ -63,7 +63,7 @@
         <java.version>17</java.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <spring.version>3.4.3</spring.version>
-        <sonar-maven-plugin.version>3.10.0.2594</sonar-maven-plugin.version>
+        <sonar-maven-plugin.version>5.1.0.4751</sonar-maven-plugin.version>
         <jacoco.plugin.version>0.8.10</jacoco.plugin.version>
         <spring-security-oauth2-version>1.4.2</spring-security-oauth2-version>
         <spring-security-oauth2-client-version>6.4.2</spring-security-oauth2-client-version>
