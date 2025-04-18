@@ -20,3 +20,10 @@ jobs:
     uses: eclipse-ecsp/.github/.github/workflows/workflow-sonar-analysis.yml@main
     secrets:
       token: ${{ secrets.SONAR_TOKEN }}
+  dependencies_update:
+    needs: sonar_analysis
+    uses: eclipse-ecsp/.github/.github/workflows/workflow-dependencies-update.yml@main
+    secrets: inherit
+    permissions:
+      pull-requests: write
+      contents: read
