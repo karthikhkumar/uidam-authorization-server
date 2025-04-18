@@ -1,7 +1,9 @@
 [<img src="./images/logo.png" width="300" height="150"/>](./images/logo.png)
 
-[![Build Status](https://github.com/eclipse-ecsp/uidam-authorization-server/actions/workflows/maven-ci-cd-reusable-caller.yml/badge.svg)](https://github.com/eclipse-ecsp/uidam-authorization-server/actions/workflows/maven-ci-cd-reusable-caller.yml)
-[![License](https://github.com/eclipse-ecsp/uidam-authorization-server/actions/workflows/license-compliance.yml/badge.svg)](https://github.com/eclipse-ecsp/uidam-authorization-server/actions/workflows/license-compliance.yml)
+[![Maven Build & Sonar Analysis](https://github.com/eclipse-ecsp/uidam-authorization-server/actions/workflows/maven-build.yml/badge.svg)](https://github.com/eclipse-ecsp/uidam-authorization-server/actions/workflows/maven-build.yml)
+[![License Compliance](https://github.com/eclipse-ecsp/uidam-authorization-server/actions/workflows/licence-compliance.yaml/badge.svg)](https://github.com/eclipse-ecsp/uidam-authorization-server/actions/workflows/licence-compliance.yaml)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=eclipse-ecsp_uidam-authorization-server&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=eclipse-ecsp_uidam-authorization-server)
+[![Latest Release](https://img.shields.io/github/v/release/eclipse-ecsp/uidam-authorization-server?sort=semver)](https://github.com/eclipse-ecsp/uidam-authorization-server/releases)
 
 # UIDAM-Authorization-Server
 
