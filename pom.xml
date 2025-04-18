@@ -19,9 +19,9 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>com.eclipse.ecsp</groupId>
+    <groupId>org.eclipse.ecsp</groupId>
     <artifactId>uidam-authorization-server</artifactId>
-    <version>0.0.1</version>
+    <version>0.0.5-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>uidam-authorization-server</name>
     <description>Project for Authorization Server</description>
@@ -63,7 +63,7 @@
         <java.version>17</java.version>
         <maven.compiler.parameters>true</maven.compiler.parameters>
         <spring.version>3.4.3</spring.version>
-        <sonar-maven-plugin.version>3.10.0.2594</sonar-maven-plugin.version>
+        <sonar-maven-plugin.version>5.1.0.4751</sonar-maven-plugin.version>
         <jacoco.plugin.version>0.8.10</jacoco.plugin.version>
         <spring-security-oauth2-version>1.4.2</spring-security-oauth2-version>
         <spring-security-oauth2-client-version>6.4.2</spring-security-oauth2-client-version>
@@ -363,9 +363,7 @@
                     org.apache.maven.plugins
                 </groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>
-                    3.10.1
-                </version>
+                <version>3.11.0</version>
                 <configuration>
                     <source>17</source> <!-- depending on your project -->
                     <target>17</target> <!-- depending on your project -->
