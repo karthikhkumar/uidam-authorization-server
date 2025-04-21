@@ -44,6 +44,7 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
@@ -102,6 +103,9 @@ public class IgniteSecurityConfig {
 
     @Value("${cors.allowed.methods}")
     private String corsAllowedMethods;
+    
+    @Value("${session.recreation.policy}")
+    private String sessionRecreationPolicy;    
 
     private TenantProperties tenantProperties;
 
@@ -161,7 +165,8 @@ public class IgniteSecurityConfig {
         SavedRequestAwareAuthenticationSuccessHandler savedRequestAwareAuthenticationSuccessHandler =
                 new SavedRequestAwareAuthenticationSuccessHandler();
         savedRequestAwareAuthenticationSuccessHandler.setRequestCache(requestCache);
-
+        http.sessionManagement(session -> session.sessionCreationPolicy(
+                SessionCreationPolicy.valueOf(sessionRecreationPolicy)));
         DatabaseSecurityContextRepository databaseSecurityContextRepository = new DatabaseSecurityContextRepository(
                 authorizationSecurityContextRepository, tenantConfigurationService, sessionTimeout);
         http.securityContext(securityContextConfigurer ->
@@ -203,8 +208,7 @@ public class IgniteSecurityConfig {
                                 new MediaTypeRequestMatcher(MediaType.TEXT_HTML)))
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(withDefaults()));
         CustomUserPwdAuthenticationFilter customUserPwdAuthenticationFilter = new CustomUserPwdAuthenticationFilter(
-                authenticationConfiguration.getAuthenticationManager(),
-                tenantConfigurationService);
+                authenticationConfiguration.getAuthenticationManager(), tenantConfigurationService);
         customUserPwdAuthenticationFilter.setSecurityContextRepository(databaseSecurityContextRepository);
         customUserPwdAuthenticationFilter.setAuthenticationSuccessHandler(
                 savedRequestAwareAuthenticationSuccessHandler);
