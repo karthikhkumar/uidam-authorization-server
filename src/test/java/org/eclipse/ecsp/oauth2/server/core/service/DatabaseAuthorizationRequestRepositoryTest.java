@@ -25,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
@@ -73,6 +74,17 @@ class DatabaseAuthorizationRequestRepositoryTest {
         this.clientRegistrationRepository = mock(ClientRegistrationRepository.class);
         request = new MockHttpServletRequest();
         request.setRequestedSessionId(REQUESTED_SESSION_ID);
+        // Create a MockHttpSession
+        MockHttpSession session = new MockHttpSession() {
+            @Override
+            public String getId() {
+                return REQUESTED_SESSION_ID; // Return your desired session ID
+            }
+        };
+
+        // Attach the session to the request
+        request.setSession(session);
+
         response = new MockHttpServletResponse();
         databaseAuthorizationRequestRepository = new DatabaseAuthorizationRequestRepository(
             authorizationRequestRepository, clientRegistrationRepository);
