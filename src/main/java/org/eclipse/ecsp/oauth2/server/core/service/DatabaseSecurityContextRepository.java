@@ -148,7 +148,7 @@ public class DatabaseSecurityContextRepository implements SecurityContextReposit
      */
     @Override
     public void saveContext(SecurityContext context, HttpServletRequest request, HttpServletResponse response) {
-        String requestedSessionId = request.getRequestedSessionId();
+        String requestedSessionId = request.getSession().getId();
         if (context == null) {
             LOGGER.debug("Null SecurityContext for Session Id: {}", requestedSessionId);
             return;
@@ -175,7 +175,7 @@ public class DatabaseSecurityContextRepository implements SecurityContextReposit
      * @param request the HttpServletRequest
      */
     private void authenticatedContextInDb(SecurityContext context, HttpServletRequest request) {
-        String requestedSessionId = request.getRequestedSessionId();
+        String requestedSessionId = request.getSession().getId();
         LOGGER.info("Storing Authenticated SecurityContext to Database for Session Id: {}", requestedSessionId);
         Timestamp currentTimestamp = Timestamp.from(Instant.now());
         AuthorizationSecurityContext authorizationSecurityContext = getSecurityContextFromDb(requestedSessionId);
@@ -261,7 +261,7 @@ public class DatabaseSecurityContextRepository implements SecurityContextReposit
      * @return the SecurityContext for the request, or null if none exists
      */
     private SecurityContext readSecurityContext(HttpServletRequest request) {
-        String requestedSessionId = request.getRequestedSessionId();
+        String requestedSessionId = request.getSession().getId();
         if (StringUtils.isEmpty(requestedSessionId)) {
             LOGGER.debug("No Session currently exists");
             return null;
