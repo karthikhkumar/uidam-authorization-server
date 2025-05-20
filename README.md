@@ -43,7 +43,7 @@ from the command line interface.
    environment.
 2. DB Setup by following steps mentioned in [Local DB Setup](#local-db-setup)
 3. There would be interaction required with UIDAM User Management for user, client and account authentication. Please make sure to run respective components on different ports and
-   update the property user-management-base-url in [application.properties](src/main/resources/application.properties) accordingly.
+   update the property user-management-base-url, postgres.username and postgres.password in [application.properties](src/main/resources/application.properties) accordingly.
 4. Install Postman locally for running curl commands
 5. Maven version 3.6 or higher
 6. Java version 17
@@ -58,8 +58,7 @@ from the command line interface.
 
 1. Install PostgreSQL and a Database manager tool like [DBeaver](https://dbeaver.com/2022/02/17/how-to-download-and-install-dbeaver/)
 2. If it is a fresh installation then need to create uidam_management database and uidam schema in uidam_management database before running the application.
-3. If database already exists then we can verify if schema exists and if not then create schema.
-4. Steps to create db and schema(fresh installation)
+3. Steps to create db and schema(fresh installation)
    1. Drop role if exist - DROP ROLE IF EXISTS uidam_management;
    2. Create a user for db - create user uidam_management with password  'uidam_management';
    3. alter user uidam_management CREATEDB;
@@ -67,10 +66,10 @@ from the command line interface.
    5. \c uidam_management;
    6. Check all schema exists in db - \dn
    7. Create schema - CREATE SCHEMA IF NOT EXISTS uidam;
-5. Steps to create schema in case db already exists:
+4. Steps to create schema in case db already exists but schema is not exist:
    1. Check all schema exists in db - \dn
    2. Create schema - CREATE SCHEMA IF NOT EXISTS uidam;
-6. When the application is run, Liquibase will take care of creating tables in the schema and populating with default data.
+5. When the application is run, Liquibase will take care of creating tables in the schema and populating with default data.
 
 #### Build
 
