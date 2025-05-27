@@ -139,29 +139,32 @@ It provides the following services:
 ### Curl Commands
 1. Access Token Generation using grant type: client credentials
 
-```curl --location 'https://localhost:9443/oauth2/token' --header 'content-type: application/x-www-form-urlencoded' --data-urlencode 'grant_type=client_credentials' --data-urlencode 'scope<CLIENT_SCOPES>' --data-urlencode 'client_id=<CLIENT_ID>' --data-urlencode 'client_secret=<CLIENT_SECRET>'```
+```curl -k --location 'https://localhost:9443/oauth2/token' --header 'content-type: application/x-www-form-urlencoded' --data-urlencode 'grant_type=client_credentials' --data-urlencode 'scope<CLIENT_SCOPES>' --data-urlencode 'client_id=<CLIENT_ID>' --data-urlencode 'client_secret=<CLIENT_SECRET>'```
 
-2. Authorization Code Authorize Endpoint to generate authorization code
+2. Authorization Code Authorize Endpoint to generate authorization code (try below URL in browser)
 
-```curl --location 'https://localhost:9443/oauth2/authorize?response_type=code&client_id=<CLIENT_ID>&redirect_uri=<CLIENT_REDIRECT_URI>&scope=<CLIENT_SCOPES>' --header 'content-type: application/x-www-form-urlencoded'```
+https://localhost:9443/oauth2/authorize?response_type=code&client_id=<CLIENT_ID>&redirect_uri=<CLIENT_REDIRECT_URI>&scope=<CLIENT_SCOPES>
+
 3. Authorization Code Token Endpoint to generate token using authorization code(grant type: authorization code)
 
-```curl --location 'https://localhost:9443/oauth2/token' --header 'Content-Type: application/x-www-form-urlencoded' --data-urlencode 'grant_type=authorization_code' --data-urlencode 'code=<AUTH_CODE>' --data-urlencode 'client_id=<CLIENT_ID>' --data-urlencode 'redirect_uri=<REDIRECT_URI>' --data-urlencode 'client_secret=<CLIENT_SECRET>'```
+```curl -k --location 'https://localhost:9443/oauth2/token' --header 'Content-Type: application/x-www-form-urlencoded' --data-urlencode 'grant_type=authorization_code' --data-urlencode 'code=<AUTH_CODE>' --data-urlencode 'client_id=<CLIENT_ID>' --data-urlencode 'redirect_uri=<REDIRECT_URI>' --data-urlencode 'client_secret=<CLIENT_SECRET>'```
 4. Authorization Code Authorize Endpoint with PKCE to generate authorization code with PKCE
 
-```curl --location 'https://localhost:9443/oauth2/authorize?response_type=code&client_id=<CLIENT_ID>&redirect_uri=<CLIENT_REDIRECT_URI>&scope=<CLIENT_SCOPES>&code_challenge=<CODE_CHALLENGE>&code_challenge_method=S256' --header 'content-type: application/x-www-form-urlencoded'```
+https://localhost:9443/oauth2/authorize?response_type=code&client_id=<CLIENT_ID>&redirect_uri=<CLIENT_REDIRECT_URI>&scope=<CLIENT_SCOPES>&code_challenge=<CODE_CHALLENGE>&code_challenge_method=S256
+
 5. Authorization Code Token Endpoint with PKCE to generate token using authorization code with PKCE(grant type: authorization code)
 
-```curl --location 'https://localhost:9443/oauth2/token' --header 'Content-Type: application/x-www-form-urlencoded' --data-urlencode 'grant_type=authorization_code' --data-urlencode 'code=<AUTH_CODE>' --data-urlencode 'client_id=<CLIENT_ID>' --data-urlencode 'redirect_uri=<REDIRECT_URI>' --data-urlencode 'code_verifier=<CODE_VERIFIER>'```
+```curl -k --location 'https://localhost:9443/oauth2/token' --header 'Content-Type: application/x-www-form-urlencoded' --data-urlencode 'grant_type=authorization_code' --data-urlencode 'code=<AUTH_CODE>' --data-urlencode 'client_id=<CLIENT_ID>' --data-urlencode 'redirect_uri=<REDIRECT_URI>' --data-urlencode 'code_verifier=<CODE_VERIFIER>' --data-urlencode 'client_secret=<CLIENT_SECRET>'```
+
 6. Token Revoke to revoke token
 
-```curl --location 'https://localhost:9443/oauth2/revoke' --header 'Authorization: Basic <BASE64_ENCODED_CLIENT_ID_CLIENT_SECRET>' --header 'content-type: application/x-www-form-urlencoded' --data-urlencode 'token=<ACCESS_TOKEN>' --data-urlencode 'client_id=<CLIENT_ID>' --data-urlencode 'client_secret=<CLIENT_SECRET>'```
+```curl -k --location 'https://localhost:9443/oauth2/revoke' --header 'Authorization: Basic <BASE64_ENCODED_CLIENT_ID_CLIENT_SECRET>' --header 'content-type: application/x-www-form-urlencoded' --data-urlencode 'token=<ACCESS_TOKEN>' --data-urlencode 'client_id=<CLIENT_ID>' --data-urlencode 'client_secret=<CLIENT_SECRET>'```
 7. Token Introspect to introspect token
 
-```curl --location 'https://localhost:9443/oauth2/introspect' --header 'Authorization: Basic <BASE64_ENCODED_CLIENT_ID_CLIENT_SECRET>' --header 'Content-Type: application/x-www-form-urlencoded' --header 'Accept: application/json' --data-urlencode 'token=<ACCESS_TOKEN>'```
-8. Token generation using "refresh token" grant type(Refresh token is generated when token is generated using authorization code or client credentials)
+```curl -k --location 'https://localhost:9443/oauth2/introspect' --header 'Authorization: Basic <BASE64_ENCODED_CLIENT_ID_CLIENT_SECRET>' --header 'Content-Type: application/x-www-form-urlencoded' --header 'Accept: application/json' --data-urlencode 'token=<ACCESS_TOKEN>'```
+8. Token generation using "refresh token" grant type(Refresh token is generated when token is generated using authorization code or with PKCE)
 
-```curl --silent --location --request POST 'https://localhost:9443/oauth2/token' --header 'Content-Type: application/x-www-form-urlencoded' --header 'Authorization: Basic <BASE64_ENCODED_CLIENT_ID_CLIENT_SECRET>' --data-urlencode 'grant_type=refresh_token' --data-urlencode 'scopes=<CLIENT_SCOPES>' --data-urlencode 'refresh_token=<REFRESH_TOKEN>'```
+```curl -k --silent --location --request POST 'https://localhost:9443/oauth2/token' --header 'Content-Type: application/x-www-form-urlencoded' --header 'Authorization: Basic <BASE64_ENCODED_CLIENT_ID_CLIENT_SECRET>' --data-urlencode 'grant_type=refresh_token' --data-urlencode 'scopes=<CLIENT_SCOPES>' --data-urlencode 'refresh_token=<REFRESH_TOKEN>'```
 
 Note: Replace the placeholders with actual values. The above shared curls are for localhost, please replace "localhost" with the actual server URL.
 
