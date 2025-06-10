@@ -101,8 +101,7 @@
         <skipJavadocs>false</skipJavadocs>
         <skipSource>false</skipSource>
         <skipGpgSign>true</skipGpgSign>
-        <nexus-staging-maven-plugin.version>1.7.0</nexus-staging-maven-plugin.version>
-        <skipNexusStaging>true</skipNexusStaging>
+        <skipMavenPublishing>true</skipMavenPublishing>
 
 
     </properties>
@@ -622,7 +621,7 @@
                 <skipGpgSign>true</skipGpgSign>
                 <skipJavadocs>false</skipJavadocs>
                 <skipSource>false</skipSource>
-                <skipNexusStaging>true</skipNexusStaging>
+                <skipMavenPublishing>true</skipMavenPublishing>
                 <autoReleaseAfterClose>false</autoReleaseAfterClose>
             </properties>
         </profile>
@@ -636,7 +635,7 @@
                 <skipGpgSign>true</skipGpgSign>
                 <skipJavadocs>true</skipJavadocs>
                 <skipSource>true</skipSource>
-                <skipNexusStaging>true</skipNexusStaging>
+                <skipMavenPublishing>true</skipMavenPublishing>
                 <autoReleaseAfterClose>false</autoReleaseAfterClose>
             </properties>
         </profile>
@@ -648,7 +647,7 @@
                 <skipGpgSign>false</skipGpgSign>
                 <skipJavadocs>false</skipJavadocs>
                 <skipSource>false</skipSource>
-                <skipNexusStaging>false</skipNexusStaging>
+                <skipMavenPublishing>false</skipMavenPublishing>
                 <autoReleaseAfterClose>true</autoReleaseAfterClose>
             </properties>
         </profile>
