@@ -72,6 +72,9 @@ public class CacheClientServiceImpl implements CacheClientService {
     @Override
     public ClientCacheDetails getClientDetailsWithSync(String clientId) {
         ClientCacheDetails clientCacheDetails = getClientDetailsFromAuthMgmt(clientId);
+        if (clientCacheDetails == null) {
+            return null;
+        }
         LOGGER.info("Putting client details in cache for client id: {}", clientId);
         return clientCacheDetails;
     }
@@ -87,6 +90,9 @@ public class CacheClientServiceImpl implements CacheClientService {
     @Override
     public ClientCacheDetails getClientDetailsWithoutSync(String clientId) {
         ClientCacheDetails clientCacheDetails = getClientDetailsFromAuthMgmt(clientId);
+        if (clientCacheDetails == null) {
+            return null;
+        }
         boolean cache = isCacheRequired(clientId, clientCacheDetails.getRegisteredClient());
         clientCacheDetails.setCache(cache);
         if (cache) {
@@ -103,6 +109,9 @@ public class CacheClientServiceImpl implements CacheClientService {
      */
     private ClientCacheDetails getClientDetailsFromAuthMgmt(String clientId) {
         RegisteredClientDetails registeredClientDetails =  authManagementClient.getClientDetails(clientId);
+        if (registeredClientDetails == null) {
+            return null;
+        }
         RegisteredClient registeredClient = registeredClientMapper.toRegisteredClient(registeredClientDetails);
         ClientCacheDetails clientCacheDetails = new ClientCacheDetails();
         clientCacheDetails.setRegisteredClient(registeredClient);
