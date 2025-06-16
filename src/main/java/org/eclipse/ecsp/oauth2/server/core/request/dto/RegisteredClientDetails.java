@@ -43,6 +43,7 @@ public class RegisteredClientDetails extends BaseResponse {
     private List<String> clientAuthenticationMethods;
     private List<String> authorizationGrantTypes;
     private List<String> redirectUris;
+    private List<String> postLogoutRedirectUris;
     private Set<String> scopes;
     private long  accessTokenValidity;
     private long  refreshTokenValidity;

@@ -68,7 +68,6 @@ public class IgniteOauth2CoreConstants {
     public static final String ACCOUNT_FIELD_ENABLED = "isAccountFieldEnabled";
     public static final String CAPTCHA_FIELD_ENABLED = "isCaptchaFieldEnabled";
     public static final String CAPTCHA_SITE = "captchaSite";
-    public static final String PASSWORD_REGEX = "pwdRegex";
 
     public static final String REVOKE_TOKEN_SUCCESS_RESPONSE = "Token revoked successfully!";
     public static final String NO_ACTIVE_TOKEN_EXIST = "No active token exist for the provided id!";
@@ -98,10 +97,11 @@ public class IgniteOauth2CoreConstants {
     public static final Pattern RESPONSE_PATTERN = Pattern.compile("[A-Za-z0-9_-]+");
 
     public static final String RECAPTCHA_URL_TEMPLATE = "?secret=%s&response=%s&remoteip=%s";
-
     public static final int ITERATION_COUNT = 65536;
     public static final String LOGIN_FAILURE_HANDLER = "/login?error";
     public static final String LOGIN_HANDLER = "/login";
+    public static final String LOGOUT_HANDLER = "/oauth2/logout";
+    public static final String LOGOUT_MATCHER_PATTERN = "/oauth2/logout/**";
     public static final String LOGIN_MATCHER_PATTERN = "/login/**";
     public static final String REQUEST_MATCHER_PATTERN = "/oauth2/**";
     public static final int INITIAL_ODD_NUMBER = 17;
@@ -139,8 +139,15 @@ public class IgniteOauth2CoreConstants {
     public static final String ERROR_LITERAL = "error";
     public static final String MSG_LITERAL = "message";
     public static final String PWD_NOTE = "pwdNote";
-    public static final String PWD_MIN_LENGTH = "pwdMin";
-    public static final String PWD_MAX_LENGTH = "pwdMax";
+    public static final String MIN_LENGTH = "pwdMin";
+    public static final String MAX_LENGTH = "pwdMax";
+    public static final String MIN_CON_LETTERS = "minConsecutiveLettersLength";
+    public static final String MIN_SPECIALCHARS = "minSpecialChars";
+    public static final String ALLOWED_SPECIALCHARS = "allowedSpecialChars";
+    public static final String EXCLUDED_SPECIALCHARS = "excludedSpecialChars";
+    public static final String MIN_UPPERCASE = "minUppercase";
+    public static final String MIN_LOWERCASE = "minLowercase";
+    public static final String MIN_DIGITS = "minDigits";
     public static final boolean TRUE = true;
 
     public static final String ERROR_WHILE_BUILDING_REDIRECT_URI = "Error while building redirect URI: ";

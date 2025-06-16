@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logout Successful</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>    <div class="home-container">
+        <div class="success-title">LOGOUT SUCCESSFUL!</div>
+        <div class="success-title">You have been logged out</div>
+        <p class="success-message">Your session has been terminated successfully.</p>
+        <div class="return-to-login">Thank you for using our service</div>
+    </div>
+    <div class="rights" th:fragment="footer">
+        © <script>document.write(new Date().getFullYear());</script> HARMAN International. All Rights Reserved.
+    </div> 
+</body>
+</html>

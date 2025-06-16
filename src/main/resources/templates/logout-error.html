@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="https://www.thymeleaf.org">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Logout Error</title>
+    <link rel="stylesheet" th:href="@{/css/bootstrap.css}">
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div class="jumbotron">
+    <div class="error-container">
+        <h2>Logout Error</h2>
+        <p>An error occurred while processing your logout request.</p>        <div th:if="${errorMessage}" class="container-error">
+            <p th:text="${errorMessage}" style="color: #f00404 !important; font-weight: 600; font-size: 14px;"></p>
+        </div>
+    </div>
+</div>
+<div class="rights" th:fragment="footer">
+    © <script>document.write(new Date().getFullYear());</script> HARMAN International. All Rights Reserved.
+</div>
+</body>
+</html>

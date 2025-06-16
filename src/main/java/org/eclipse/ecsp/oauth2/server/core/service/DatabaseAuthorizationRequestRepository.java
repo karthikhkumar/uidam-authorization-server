@@ -88,7 +88,7 @@ public class DatabaseAuthorizationRequestRepository implements
      */
     @Override
     public OAuth2AuthorizationRequest loadAuthorizationRequest(HttpServletRequest request) {
-        String requestedSessionId = request.getSession().getId();
+        String requestedSessionId = request.getRequestedSessionId();
         LOGGER.info("Retrieving Authorization Request for Session Id: {}", requestedSessionId);
         AuthorizationRequest authorizationRequest = getAuthorizationRequestFromDb(requestedSessionId);
         if (authorizationRequest == null) {
@@ -125,7 +125,7 @@ public class DatabaseAuthorizationRequestRepository implements
     @Override
     public void saveAuthorizationRequest(OAuth2AuthorizationRequest oauth2AuthorizationRequest,
                                          HttpServletRequest request, HttpServletResponse response) {
-        String requestedSessionId = request.getSession().getId();
+        String requestedSessionId = request.getRequestedSessionId();
         LOGGER.info("Storing Authorization Request to Database for Session Id: {}", requestedSessionId);
         Timestamp currentTimestamp = Timestamp.from(Instant.now());
         AuthorizationRequest authorizationRequest = getAuthorizationRequestFromDb(requestedSessionId);

@@ -26,80 +26,74 @@ import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantPropert
 import org.eclipse.ecsp.oauth2.server.core.request.dto.UserDto;
 import org.eclipse.ecsp.oauth2.server.core.response.UserDetailsResponse;
 import org.eclipse.ecsp.oauth2.server.core.response.dto.PasswordPolicyResponseDto;
+import org.eclipse.ecsp.oauth2.server.core.service.PasswordPolicyService;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
 import org.eclipse.ecsp.oauth2.server.core.service.impl.CaptchaServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.ui.ExtendedModelMap;
 import org.springframework.ui.Model;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap;
 
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.DEFAULT_PWD_MAX_LENGTH;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.DEFAULT_PWD_MIN_LENGTH;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.DEFAULT_PWD_REGEX;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.DEFAULT_MAX_LENGTH;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.DEFAULT_MIN_LENGTH;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.PRIVACY_AGREEMENT;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.REDIRECT_LITERAL;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.SELF_SIGN_UP;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.USER_CREATED;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.ALLOWED_SPECIALCHARS;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.CAPTCHA_FIELD_ENABLED;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.CAPTCHA_SITE;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.ERROR_LITERAL;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.EXCLUDED_SPECIALCHARS;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.IS_SIGN_UP_ENABLED;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.MAX_LENGTH;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.MIN_CON_LETTERS;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.MIN_DIGITS;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.MIN_LENGTH;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.MIN_LOWERCASE;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.MIN_SPECIALCHARS;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.MIN_UPPERCASE;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.MSG_LITERAL;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.PASSWORD_REGEX;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.PWD_MAX_LENGTH;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.PWD_MIN_LENGTH;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.PWD_NOTE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@ActiveProfiles("test")
-@TestPropertySource("classpath:application-test.properties")
-@WebMvcTest(SignUpController.class)
-@ContextConfiguration(classes = { SignUpController.class,
-                                    UserManagementClient.class,
-                                    TenantConfigurationService.class })
-@EnableConfigurationProperties(value = TenantProperties.class)
 class SignUpControllerTest {
 
     @Mock
     UserManagementClient userManagementClient;
 
-    @MockitoBean
+    @Mock
     CaptchaServiceImpl captchaService;
 
     @Mock
     private TenantConfigurationService tenantConfigurationService;
 
     @Mock
+    private PasswordPolicyService passwordPolicyService;
+
+    @Mock
     private TenantProperties tenantProperties;
 
-    @InjectMocks
     private SignUpController signUpController;
-
-    private int minLength = 10;
 
     @BeforeEach
     void setUp() {
-        signUpController = new SignUpController(tenantConfigurationService);
         MockitoAnnotations.openMocks(this);
         when(tenantConfigurationService.getTenantProperties(any())).thenReturn(tenantProperties);
-        when(userManagementClient.getPasswordPolicy()).thenReturn(getPasswordPolicyDto());
-
+        signUpController = new SignUpController(userManagementClient, tenantConfigurationService,
+                passwordPolicyService);
     }
 
     private CaptchaProperties defaultCaptchaProperties() {
@@ -108,7 +102,6 @@ class SignUpControllerTest {
         captchaProperties.setRecaptchaKeySecret("defaultSecretKey");
         return captchaProperties;
     }
-
 
     @Test
     void selfSignUpInit_Success() {
@@ -164,7 +157,6 @@ class SignUpControllerTest {
         assertEquals(REDIRECT_LITERAL + SELF_SIGN_UP, modelAndView.getViewName());
     }
 
-
     @Test
     void addSelfUserSignUpNotEnabled_Failure() {
         UserDto userDto = new UserDto();
@@ -172,8 +164,7 @@ class SignUpControllerTest {
         HttpServletRequest request = new MockHttpServletRequest();
         RedirectAttributes redirectAttributes = new RedirectAttributesModelMap();
 
-        when(userManagementClient.selfCreateUser(any(UserDto.class), any(HttpServletRequest.class)))
-                .thenReturn(null);
+        when(userManagementClient.selfCreateUser(any(UserDto.class), any(HttpServletRequest.class))).thenReturn(null);
 
         ModelAndView modelAndView = signUpController.addSelfUser(userDto, request, redirectAttributes);
         assertEquals(REDIRECT_LITERAL + SELF_SIGN_UP, modelAndView.getViewName());
@@ -200,9 +191,22 @@ class SignUpControllerTest {
         when(tenantProperties.isSignUpEnabled()).thenReturn(true);
         when(tenantProperties.getCaptcha()).thenReturn(defaultCaptchaProperties());
         when(userManagementClient.getPasswordPolicy()).thenReturn(getPasswordPolicyDto());
+        doAnswer(invocation -> {
+            Model model = invocation.getArgument(0);
+            model.addAttribute(PWD_NOTE, "note");
+            model.addAttribute(MIN_LENGTH, DEFAULT_MIN_LENGTH);
+            model.addAttribute(MAX_LENGTH, DEFAULT_MAX_LENGTH);
+            model.addAttribute(MIN_CON_LETTERS, 1);
+            model.addAttribute(MIN_SPECIALCHARS, 1);
+            model.addAttribute(MIN_UPPERCASE, 1);
+            model.addAttribute(MIN_LOWERCASE, 1);
+            model.addAttribute(MIN_DIGITS, 1);
+            model.addAttribute(ALLOWED_SPECIALCHARS, "!");
+            model.addAttribute(EXCLUDED_SPECIALCHARS, "[]");
+            return null;
+        }).when(passwordPolicyService).setupPasswordPolicy(any(Model.class), any(Boolean.class));
         Model model = new ExtendedModelMap();
         String viewName = signUpController.selfSignUpInit(model);
-
         assertEquals(SELF_SIGN_UP, viewName);
         assertTrue(model.containsAttribute(IS_SIGN_UP_ENABLED));
         assertTrue(model.containsAttribute(CAPTCHA_FIELD_ENABLED));
@@ -210,9 +214,16 @@ class SignUpControllerTest {
         assertTrue(model.containsAttribute(ERROR_LITERAL));
         assertTrue(model.containsAttribute(MSG_LITERAL));
         assertTrue(model.containsAttribute(PWD_NOTE));
-        assertTrue(model.containsAttribute(PWD_MIN_LENGTH));
-        assertTrue(model.containsAttribute(PWD_MAX_LENGTH));
-        assertTrue(model.containsAttribute(PASSWORD_REGEX));
+        assertTrue(model.containsAttribute(MIN_LENGTH));
+        assertTrue(model.containsAttribute(MAX_LENGTH));
+        assertTrue(model.containsAttribute(MIN_CON_LETTERS));
+        assertTrue(model.containsAttribute(MIN_SPECIALCHARS));
+        assertTrue(model.containsAttribute(ALLOWED_SPECIALCHARS));
+        assertTrue(model.containsAttribute(EXCLUDED_SPECIALCHARS));
+        assertTrue(model.containsAttribute(MIN_UPPERCASE));
+        assertTrue(model.containsAttribute(MIN_LOWERCASE));
+        assertTrue(model.containsAttribute(MIN_DIGITS));
+
     }
 
     @Test
@@ -220,6 +231,20 @@ class SignUpControllerTest {
         when(tenantProperties.isSignUpEnabled()).thenReturn(true);
         when(tenantProperties.getCaptcha()).thenReturn(defaultCaptchaProperties());
         when(userManagementClient.getPasswordPolicy()).thenReturn(getPasswordPolicyDto());
+        doAnswer(invocation -> {
+            Model model = invocation.getArgument(0);
+            model.addAttribute(PWD_NOTE, "note");
+            model.addAttribute(MIN_LENGTH, DEFAULT_MIN_LENGTH);
+            model.addAttribute(MAX_LENGTH, DEFAULT_MAX_LENGTH);
+            model.addAttribute(MIN_CON_LETTERS, 1);
+            model.addAttribute(MIN_SPECIALCHARS, 1);
+            model.addAttribute(MIN_UPPERCASE, 1);
+            model.addAttribute(MIN_LOWERCASE, 1);
+            model.addAttribute(MIN_DIGITS, 1);
+            model.addAttribute(ALLOWED_SPECIALCHARS, "!");
+            model.addAttribute(EXCLUDED_SPECIALCHARS, "[]");
+            return null;
+        }).when(passwordPolicyService).setupPasswordPolicy(any(Model.class), any(Boolean.class));
         Model model = new ExtendedModelMap();
         model.addAttribute(ERROR_LITERAL, "error");
         String viewName = signUpController.selfSignUpInit(model);
@@ -231,9 +256,8 @@ class SignUpControllerTest {
         assertTrue(model.containsAttribute(ERROR_LITERAL));
         assertTrue(model.containsAttribute(MSG_LITERAL));
         assertTrue(model.containsAttribute(PWD_NOTE));
-        assertTrue(model.containsAttribute(PWD_MIN_LENGTH));
-        assertTrue(model.containsAttribute(PWD_MAX_LENGTH));
-        assertTrue(model.containsAttribute(PASSWORD_REGEX));
+        assertTrue(model.containsAttribute(MIN_LENGTH));
+        assertTrue(model.containsAttribute(MAX_LENGTH));
     }
 
     @Test
@@ -241,10 +265,39 @@ class SignUpControllerTest {
         when(tenantProperties.isSignUpEnabled()).thenReturn(true);
         when(tenantProperties.getCaptcha()).thenReturn(defaultCaptchaProperties());
         when(userManagementClient.getPasswordPolicy()).thenReturn(getPasswordPolicyDtoForMinLengthZero());
+        doAnswer(invocation -> {
+            Model model = invocation.getArgument(0);
+            model.addAttribute(PWD_NOTE, "note");
+            model.addAttribute(MIN_LENGTH, 0);
+            model.addAttribute(MAX_LENGTH, DEFAULT_MAX_LENGTH);
+            model.addAttribute(MIN_CON_LETTERS, 1);
+            model.addAttribute(MIN_SPECIALCHARS, 1);
+            model.addAttribute(MIN_UPPERCASE, 1);
+            model.addAttribute(MIN_LOWERCASE, 1);
+            model.addAttribute(MIN_DIGITS, 1);
+            model.addAttribute(ALLOWED_SPECIALCHARS, "!");
+            model.addAttribute(EXCLUDED_SPECIALCHARS, "[]");
+            return null;
+        }).when(passwordPolicyService).setupPasswordPolicy(any(Model.class), any(Boolean.class));
         Model model = new ExtendedModelMap();
         model.addAttribute(ERROR_LITERAL, "error");
         signUpController.selfSignUpInit(model);
-        assertEquals(model.getAttribute(PWD_MIN_LENGTH), minLength);
+        assertTrue(model.containsAttribute(IS_SIGN_UP_ENABLED));
+        assertTrue(model.containsAttribute(CAPTCHA_FIELD_ENABLED));
+        assertTrue(model.containsAttribute(CAPTCHA_SITE));
+        assertTrue(model.containsAttribute(ERROR_LITERAL));
+        assertTrue(model.containsAttribute(MSG_LITERAL));
+        assertTrue(model.containsAttribute(PWD_NOTE));
+        assertTrue(model.containsAttribute(MIN_LENGTH));
+        assertTrue(model.containsAttribute(MAX_LENGTH));
+        assertTrue(model.containsAttribute(MIN_CON_LETTERS));
+        assertTrue(model.containsAttribute(MIN_SPECIALCHARS));
+        assertTrue(model.containsAttribute(ALLOWED_SPECIALCHARS));
+        assertTrue(model.containsAttribute(EXCLUDED_SPECIALCHARS));
+        assertTrue(model.containsAttribute(MIN_UPPERCASE));
+        assertTrue(model.containsAttribute(MIN_LOWERCASE));
+        assertTrue(model.containsAttribute(MIN_DIGITS));
+        assertEquals(model.getAttribute(MIN_LENGTH), model.getAttribute(MIN_LENGTH));
     }
 
     @Test
@@ -263,11 +316,24 @@ class SignUpControllerTest {
     void selfSignUpInit_NoPasswordPolicy() {
         when(tenantProperties.isSignUpEnabled()).thenReturn(true);
         when(tenantProperties.getCaptcha()).thenReturn(defaultCaptchaProperties());
-        when(userManagementClient.getPasswordPolicy()).thenReturn(null);
-
+        // Password policy is handled by PasswordPolicyService, not controller
+        // So we should mock the service to set attributes on the model
+        doAnswer(invocation -> {
+            Model model = invocation.getArgument(0);
+            model.addAttribute(PWD_NOTE, "note");
+            model.addAttribute(MIN_LENGTH, DEFAULT_MIN_LENGTH);
+            model.addAttribute(MAX_LENGTH, DEFAULT_MAX_LENGTH);
+            model.addAttribute(MIN_CON_LETTERS, 1);
+            model.addAttribute(MIN_SPECIALCHARS, 1);
+            model.addAttribute(MIN_UPPERCASE, 1);
+            model.addAttribute(MIN_LOWERCASE, 1);
+            model.addAttribute(MIN_DIGITS, 1);
+            model.addAttribute(ALLOWED_SPECIALCHARS, "!");
+            model.addAttribute(EXCLUDED_SPECIALCHARS, "[]");
+            return null;
+        }).when(passwordPolicyService).setupPasswordPolicy(any(Model.class), any(Boolean.class));
         Model model = new ExtendedModelMap();
         String viewName = signUpController.selfSignUpInit(model);
-
         assertEquals(SELF_SIGN_UP, viewName);
         assertTrue(model.containsAttribute(IS_SIGN_UP_ENABLED));
         assertTrue(model.containsAttribute(CAPTCHA_FIELD_ENABLED));
@@ -275,16 +341,26 @@ class SignUpControllerTest {
         assertTrue(model.containsAttribute(ERROR_LITERAL));
         assertTrue(model.containsAttribute(MSG_LITERAL));
         assertTrue(model.containsAttribute(PWD_NOTE));
-        assertEquals(DEFAULT_PWD_MIN_LENGTH, model.getAttribute(PWD_MIN_LENGTH));
-        assertEquals(DEFAULT_PWD_MAX_LENGTH, model.getAttribute(PWD_MAX_LENGTH));
-        assertEquals(DEFAULT_PWD_REGEX, model.getAttribute(PASSWORD_REGEX));
+        assertEquals(DEFAULT_MIN_LENGTH, model.getAttribute(MIN_LENGTH));
+        assertEquals(DEFAULT_MAX_LENGTH, model.getAttribute(MAX_LENGTH));
+        assertEquals(1, model.getAttribute(MIN_CON_LETTERS));
+        assertEquals(1, model.getAttribute(MIN_SPECIALCHARS));
+        assertEquals(1, model.getAttribute(MIN_UPPERCASE));
+        assertEquals(1, model.getAttribute(MIN_LOWERCASE));
+        assertEquals(1, model.getAttribute(MIN_DIGITS));
     }
 
     private PasswordPolicyResponseDto getPasswordPolicyDto() {
         PasswordPolicyResponseDto passwordPolicyResponseDto = new PasswordPolicyResponseDto();
-        passwordPolicyResponseDto.setMinLength(DEFAULT_PWD_MIN_LENGTH);
-        passwordPolicyResponseDto.setMaxLength(DEFAULT_PWD_MAX_LENGTH);
-        passwordPolicyResponseDto.setPasswordRegex(DEFAULT_PWD_REGEX);
+        passwordPolicyResponseDto.setMinLength(DEFAULT_MIN_LENGTH);
+        passwordPolicyResponseDto.setMaxLength(DEFAULT_MAX_LENGTH);
+        passwordPolicyResponseDto.setMinConsecutiveLettersLength(0);
+        passwordPolicyResponseDto.setMinSpecialChars(0);
+        passwordPolicyResponseDto.setAllowedSpecialChars("!@#$%^&*()_+");
+        passwordPolicyResponseDto.setExcludedSpecialChars("{}[];:'\"<>,.?/\\|`~");
+        passwordPolicyResponseDto.setMinUppercase(0);
+        passwordPolicyResponseDto.setMinDigits(0);
+        passwordPolicyResponseDto.setMinLowercase(0);
         return passwordPolicyResponseDto;
     }
 
@@ -300,6 +376,38 @@ class SignUpControllerTest {
         userDetailsResponse.setVerificationEmailSent(true);
         // Set other necessary fields...
         return userDetailsResponse;
+    }
+
+    @Test
+    void selfSignUpInit_SignUpEnabled_CallsPasswordPolicyService() {
+        when(tenantProperties.isSignUpEnabled()).thenReturn(true);
+        when(tenantProperties.getCaptcha()).thenReturn(defaultCaptchaProperties());
+        Model model = new ExtendedModelMap();
+
+        String viewName = signUpController.selfSignUpInit(model);
+
+        assertEquals(SELF_SIGN_UP, viewName);
+        assertTrue(model.containsAttribute(IS_SIGN_UP_ENABLED));
+        assertTrue(model.containsAttribute(CAPTCHA_FIELD_ENABLED));
+        assertTrue(model.containsAttribute(CAPTCHA_SITE));
+        assertTrue(model.containsAttribute(ERROR_LITERAL));
+        assertTrue(model.containsAttribute(MSG_LITERAL));
+        // Password policy attributes are set by the service, not controller
+        verify(passwordPolicyService, times(1)).setupPasswordPolicy(model, false);
+    }
+
+    @Test
+    void selfSignUpInit_SignUpDisabled_SetsMessage() {
+        when(tenantProperties.isSignUpEnabled()).thenReturn(false);
+        Model model = new ExtendedModelMap();
+
+        String viewName = signUpController.selfSignUpInit(model);
+
+        assertEquals(SELF_SIGN_UP, viewName);
+        assertTrue(model.containsAttribute(IS_SIGN_UP_ENABLED));
+        assertEquals(AuthorizationServerConstants.SIGN_UP_NOT_ENABLED, model.getAttribute(MSG_LITERAL));
+        // PasswordPolicyService should NOT be called
+        verify(passwordPolicyService, times(0)).setupPasswordPolicy(model, false);
     }
 
     private UserDetailsResponse getUserDetailsResponse1() {

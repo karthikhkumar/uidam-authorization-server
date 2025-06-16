@@ -21,9 +21,11 @@ package org.eclipse.ecsp.oauth2.server.core.service;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.ClientProperties;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
 import org.eclipse.ecsp.oauth2.server.core.request.dto.RegisteredClientDetails;
+import org.eclipse.ecsp.oauth2.server.core.utils.PasswordUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
@@ -41,7 +43,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.BCRYPT_ID_ENCODE;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.ID_PREFIX;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.ID_SUFFIX;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.NOOP_ID_ENCODE;
@@ -56,6 +57,9 @@ public class RegisteredClientMapper {
 
     @Autowired
     TenantProperties tenantProperties;
+    
+    @Value("${security.client.bcrypt.strength:high}")
+    private String bcryptLength;
 
     protected RegisteredClientMapper() {
         // Prevent instantiation
@@ -109,10 +113,11 @@ public class RegisteredClientMapper {
         }
     }
 
+
     /**
      * This method is used to set the redirect URIs for a RegisteredClient instance.
-     * It checks if the client details have any redirect URIs present. If so, it adds each redirect URI to the
-     * RegisteredClient instance.
+     * It checks if the client details have any redirect URIs or post logout redirect URIs present. If so, it adds
+     * each URI to the RegisteredClient instance.
      *
      * @param clientDetails the client details from which to retrieve the redirect URIs.
      * @param builder the RegisteredClient.Builder instance to which the redirect URIs are added.
@@ -122,6 +127,13 @@ public class RegisteredClientMapper {
             builder.redirectUris(redirectUrisConsumer -> {
                 for (String redirectUri : clientDetails.getRedirectUris()) {
                     redirectUrisConsumer.add(redirectUri);
+                }
+            });
+        }
+        if (Optional.ofNullable(clientDetails.getPostLogoutRedirectUris()).isPresent()) {
+            builder.postLogoutRedirectUris(postLogoutRedirectUrisConsumer -> {
+                for (String postLogoutRedirectUri : clientDetails.getPostLogoutRedirectUris()) {
+                    postLogoutRedirectUrisConsumer.add(postLogoutRedirectUri);
                 }
             });
         }
@@ -177,8 +189,9 @@ public class RegisteredClientMapper {
         String id = extractId(clientSecret);
         if (id == null || id.equals(NOOP_ID_ENCODE)) {
             String rawPassword = extractEncodedPassword(clientSecret);
-            PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
-            clientSecret = ID_PREFIX + BCRYPT_ID_ENCODE + ID_SUFFIX + passwordEncoder.encode(rawPassword);
+            PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(
+                    PasswordUtils.UIDAM_BCRYPT_STRENGTH_MAP.get(bcryptLength));
+            clientSecret = passwordEncoder.encode(rawPassword);
         }
         builder.clientSecret(clientSecret);
     }

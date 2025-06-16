@@ -31,7 +31,7 @@ import org.eclipse.ecsp.oauth2.server.core.request.dto.RevokeTokenRequest;
 import org.eclipse.ecsp.oauth2.server.core.utils.JwtTokenValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataRetrievalFailureException;
 import org.springframework.security.jackson2.SecurityJackson2Modules;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
@@ -54,7 +54,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
@@ -66,29 +70,39 @@ import static org.eclipse.ecsp.oauth2.server.core.utils.ObjectMapperUtils.writeM
  * This class is a custom implementation of the OAuth2AuthorizationService interface.
  */
 @Component
-public class AuthorizationService implements OAuth2AuthorizationService {
+public class AuthorizationService implements OAuth2AuthorizationService {    
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthorizationService.class);
-    public static final int BEGIN_INDEX = 7;
+    private static final int BEGIN_INDEX = 7;
+    private static final String DEFAULT_HASH_ALGORITHM = "SHA-256";
 
     private final AuthorizationRepository authorizationRepository;
     private final RegisteredClientRepository registeredClientRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
-    @Autowired
-    JwtTokenValidator jwtTokenValidator;
+    private final JwtTokenValidator jwtTokenValidator;
+   
+    @Value("${uidam.oauth2.token.hash.algorithm}")
+    private String tokenHashAlgorithm;
+    
+    @Value("${uidam.oauth2.token.hash.salt}")
+    private String tokenHashSalt;
 
     /**
      * Constructs a new IgniteOauth2AuthorizationService with the given repositories.
      *
      * @param authorizationRepository the repository to use for interacting with Authorization instances in the database
      * @param registeredClientRepository the repository to use for retrieving RegisteredClient instances
+     * @param jwtTokenValidator the validator to use for JWT token validation
      */
     public AuthorizationService(AuthorizationRepository authorizationRepository,
-                                RegisteredClientRepository registeredClientRepository) {
+                                RegisteredClientRepository registeredClientRepository,
+                                JwtTokenValidator jwtTokenValidator) {
         LOGGER.debug("## IgniteOAuth2AuthorizationService - START");
         Assert.notNull(authorizationRepository, "authorizationRepository cannot be null");
         Assert.notNull(registeredClientRepository, "registeredClientRepository cannot be null");
+        Assert.notNull(jwtTokenValidator, "jwtTokenValidator cannot be null");
         this.authorizationRepository = authorizationRepository;
         this.registeredClientRepository = registeredClientRepository;
+        this.jwtTokenValidator = jwtTokenValidator;
 
         ClassLoader classLoader = AuthorizationService.class.getClassLoader();
         List<Module> securityModules = SecurityJackson2Modules.getModules(classLoader);
@@ -107,7 +121,22 @@ public class AuthorizationService implements OAuth2AuthorizationService {
     public void save(OAuth2Authorization authorization) {
         LOGGER.debug("## save - START");
         Assert.notNull(authorization, "authorization cannot be null");
-        this.authorizationRepository.save(toEntity(authorization));
+        Authorization uidamAuthorization = toEntity(authorization);
+        if (StringUtils.hasText(uidamAuthorization.getAccessTokenValue())) {
+            String hashedToken = hashToken(uidamAuthorization.getAccessTokenValue());
+            uidamAuthorization.setAccessTokenValue(hashedToken);
+        }
+        if (StringUtils.hasText(uidamAuthorization.getRefreshTokenValue())) {
+            String hashedToken = hashToken(uidamAuthorization.getRefreshTokenValue());
+            uidamAuthorization.setRefreshTokenValue(hashedToken);
+        }
+        
+        if (StringUtils.hasText(uidamAuthorization.getOidcIdTokenValue())) {
+            String hashedToken = hashToken(uidamAuthorization.getOidcIdTokenValue());
+            uidamAuthorization.setOidcIdTokenValue(hashedToken);
+        }
+
+        this.authorizationRepository.save(uidamAuthorization);
         LOGGER.debug("## save - END");
     }
 
@@ -153,17 +182,18 @@ public class AuthorizationService implements OAuth2AuthorizationService {
         Optional<Authorization> result;
         if (tokenType == null) {
             result = this.authorizationRepository
-                .findByStateOrAuthCodeOrAccessTokenOrRefreshTokenOrOidcIdTokenOrUserCodeOrDeviceCode(token);
+                .findByStateOrAuthCodeOrAccessTokenOrRefreshTokenOrOidcIdTokenOrUserCodeOrDeviceCode(token,
+                        hashToken(token));
         } else if (OAuth2ParameterNames.STATE.equals(tokenType.getValue())) {
             result = this.authorizationRepository.findByState(token);
         } else if (OAuth2ParameterNames.CODE.equals(tokenType.getValue())) {
             result = this.authorizationRepository.findByAuthorizationCodeValue(token);
         } else if (OAuth2ParameterNames.ACCESS_TOKEN.equals(tokenType.getValue())) {
-            result = this.authorizationRepository.findByAccessTokenValue(token);
+            result = this.authorizationRepository.findByAccessTokenValue(hashToken(token));
         } else if (OAuth2ParameterNames.REFRESH_TOKEN.equals(tokenType.getValue())) {
-            result = this.authorizationRepository.findByRefreshTokenValue(token);
+            result = this.authorizationRepository.findByRefreshTokenValue(hashToken(token));
         } else if (OidcParameterNames.ID_TOKEN.equals(tokenType.getValue())) {
-            result = this.authorizationRepository.findByOidcIdTokenValue(token);
+            result = this.authorizationRepository.findByOidcIdTokenValue(hashToken(token));
         } else if (OAuth2ParameterNames.USER_CODE.equals(tokenType.getValue())) {
             result = this.authorizationRepository.findByUserCodeValue(token);
         } else if (OAuth2ParameterNames.DEVICE_CODE.equals(tokenType.getValue())) {
@@ -172,6 +202,10 @@ public class AuthorizationService implements OAuth2AuthorizationService {
             result = Optional.empty();
         }
         LOGGER.debug("## findByToken - END");
+        if (result.isPresent()) {
+            updateTokenWithHashToken(result.get(), token, hashToken(token));
+        }
+        
         return result.map(this::toObject).orElse(null);
     }
 
@@ -195,8 +229,21 @@ public class AuthorizationService implements OAuth2AuthorizationService {
             principalName = revokeTokenRequest.getClientId();
         }
         if (!Optional.ofNullable(principalName).isPresent()) {
+            LOGGER.error("## Principal name is missing in the request body!");
             throw new CustomOauth2AuthorizationException(CustomOauth2TokenGenErrorCodes.MISSING_FIELD_IN_REQUEST_BODY);
         }
+        return revokenTokensInDb(principalName);
+    }
+
+    /**
+     * This method is used to revoke the token in the database for a given principal name.
+     * It retrieves the active tokens for the principal name and invalidates them.
+     * If no active tokens are found, it returns a message indicating that no active token exists.
+     *
+     * @param principalName the name of the principal whose token needs to be revoked
+     * @return a response indicating whether the token was revoked successfully or not
+     */
+    public String revokenTokensInDb(String principalName) {
         try {
             LOGGER.info("## revoking token for principalName: {}", principalName);
             List<Authorization> result = this.authorizationRepository
@@ -211,6 +258,56 @@ public class AuthorizationService implements OAuth2AuthorizationService {
             }
             this.authorizationRepository.saveAll(authorizations);
             LOGGER.debug("## token revoked successfully");
+        } catch (Exception ex) {
+            LOGGER.error("## Failed to process revoke token, exception occurs: ", ex);
+            throw new CustomOauth2AuthorizationException(CustomOauth2TokenGenErrorCodes.SERVER_ERROR);
+        }
+        return IgniteOauth2CoreConstants.REVOKE_TOKEN_SUCCESS_RESPONSE;
+    }
+    
+    /**
+     * This method is used to revoke the token for a given principal name and client ID. It retrieves the active tokens
+     * for the principal name and client ID and invalidates them. This method properly handles both access tokens and
+     * refresh tokens by finding authorizations where either token type is still valid and ensuring both are properly
+     * revoked. If no active tokens are found, it returns a message indicating that no active token exists.
+     *
+     * @param principalName the name of the principal whose token needs to be revoked
+     * @param clientId the client ID associated with the token
+     * @return a response indicating whether the token was revoked successfully or not
+     */
+    public String revokenTokenByPrincipalAndClientId(String principalName, String clientId) {
+        try {
+            LOGGER.info("## revoking token for principalName: {}", principalName);
+            // Use the new repository method that considers both access and refresh token validity
+            List<Authorization> result = this.authorizationRepository
+                    .findByPrincipalNameClientAndValidTokens(principalName, clientId, Instant.now());
+            List<OAuth2Authorization> oauth2Authorizations = result.stream().map(this::toObject).toList();
+            
+            // Process each authorization to invalidate all tokens properly
+            List<Authorization> authorizations = oauth2Authorizations.stream().map(authorization -> {
+                OAuth2Authorization invalidatedAuth;
+                
+                // Check if refresh token exists and is valid - if so, invalidate via refresh token
+                // This ensures both access and refresh tokens are properly invalidated
+                OAuth2Authorization.Token<OAuth2RefreshToken> refreshToken = authorization.getRefreshToken();
+                if (refreshToken != null && !refreshToken.isInvalidated()) {
+                    LOGGER.debug("## Invalidating via refresh token to ensure complete revocation");
+                    invalidatedAuth = invalidate(authorization, refreshToken.getToken());
+                } else {
+                    // Fall back to access token invalidation
+                    LOGGER.debug("## Invalidating via access token");
+                    invalidatedAuth = invalidate(authorization, authorization.getAccessToken().getToken());
+                }
+                
+                return toEntity(invalidatedAuth);
+            }).toList();
+            
+            if (authorizations.isEmpty()) {
+                LOGGER.info("## no active token for user/client id!");
+                return IgniteOauth2CoreConstants.NO_ACTIVE_TOKEN_EXIST;
+            }
+            this.authorizationRepository.saveAll(authorizations);
+            LOGGER.debug("## token revoked successfully - both access and refresh tokens invalidated");
         } catch (Exception ex) {
             LOGGER.error("## Failed to process revoke token, exception occurs: ", ex);
             throw new CustomOauth2AuthorizationException(CustomOauth2TokenGenErrorCodes.SERVER_ERROR);
@@ -588,6 +685,48 @@ public class AuthorizationService implements OAuth2AuthorizationService {
             return AuthorizationGrantType.DEVICE_CODE;
         }
         return new AuthorizationGrantType(authorizationGrantType);              // Custom authorization grant type
+    }
+    
+    
+    /**
+     * This method is used to hash the token and response with hashed and base64 encoded value.
+     *
+     * @param token the string representation of the authorization grant type
+     * @return the hashed token
+     */
+    private String hashToken(String token) {
+        try {
+            tokenHashAlgorithm = tokenHashAlgorithm == null ? DEFAULT_HASH_ALGORITHM : tokenHashAlgorithm;
+            token += tokenHashSalt;
+            MessageDigest digest = MessageDigest.getInstance(tokenHashAlgorithm);
+            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
+            return tokenHashAlgorithm + ":" + Base64.getEncoder().encodeToString(hash);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(tokenHashAlgorithm + " algorithm not available", e);
+        }
+    }
+    
+    
+    /**
+     * This method is used to update the hash token with plain text token 
+     * so that internal process can use the token.
+     *
+     * @param authorization response object.
+     * @param token Plain text of the token.
+     * @param hashToken to compare the response object.
+     */
+    private void updateTokenWithHashToken(Authorization authorization, String token, String hashToken) {
+        
+        if (hashToken.equalsIgnoreCase(authorization.getAccessTokenValue())) {
+            authorization.setAccessTokenValue(token);
+        }
+        if (hashToken.equalsIgnoreCase(authorization.getRefreshTokenValue())) {
+            authorization.setRefreshTokenValue(token);
+        }
+        if (hashToken.equalsIgnoreCase(authorization.getOidcIdTokenValue())) {
+            authorization.setOidcIdTokenValue(token);
+        }
+        
     }
 
 }

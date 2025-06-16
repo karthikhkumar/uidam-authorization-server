@@ -32,7 +32,6 @@ import org.eclipse.ecsp.oauth2.server.core.service.DatabaseAuthorizationRequestR
 import org.eclipse.ecsp.oauth2.server.core.service.DatabaseAuthorizedClientService;
 import org.eclipse.ecsp.oauth2.server.core.service.DatabaseSecurityContextRepository;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -53,7 +52,6 @@ import org.springframework.security.oauth2.server.authorization.authentication.O
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeRequestAuthenticationProvider;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeRequestAuthenticationValidator;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
-import org.springframework.security.oauth2.server.authorization.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.oauth2.server.authorization.config.annotation.web.configurers.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
@@ -77,18 +75,18 @@ import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2C
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.LOGIN_FAILURE_HANDLER;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.LOGIN_HANDLER;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.LOGIN_MATCHER_PATTERN;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.LOGOUT_MATCHER_PATTERN;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.REQUEST_MATCHER_PATTERN;
 import static org.springframework.security.config.Customizer.withDefaults;
 import static org.springframework.security.web.util.matcher.AntPathRequestMatcher.antMatcher;
 
 /**
- * This is the main configuration class for the Ignite Security module.
- * It contains all the necessary beans and configurations required for the security module.
- * It includes configurations for OAuth2, form login, session management, and more.
- * It also includes the necessary beans for handling authentication and authorization.
+ * This is the main configuration class for the Ignite Security module. It contains all the necessary beans and
+ * configurations required for the security module. It includes configurations for OAuth2, form login, session
+ * management, and more. It also includes the necessary beans for handling authentication and authorization.
  */
-@Configuration
-@EnableWebSecurity
+@Configuration 
+@EnableWebSecurity 
 @EnableMethodSecurity
 public class IgniteSecurityConfig {
 
@@ -103,96 +101,101 @@ public class IgniteSecurityConfig {
 
     @Value("${cors.allowed.methods}")
     private String corsAllowedMethods;
-    
-    @Value("${session.recreation.policy}")
-    private String sessionRecreationPolicy;    
 
+    @Value("${session.recreation.policy}")
+    private String sessionRecreationPolicy;   
+    
     private TenantProperties tenantProperties;
 
     /**
-     * Constructor for the IgniteSecurityConfig class.
-     * It initializes the tenant properties using the provided TenantConfigurationService.
+     * Constructor for the IgniteSecurityConfig class. It initializes the tenant properties using the provided
+     * TenantConfigurationService.
      *
      * @param tenantConfigurationService Service for managing tenant configurations.
      */
-    @Autowired
     public IgniteSecurityConfig(TenantConfigurationService tenantConfigurationService) {
         tenantProperties = tenantConfigurationService.getTenantProperties(UIDAM);
     }
 
     /**
      * This method creates an instance of SecurityFilterChain which is used to apply security configurations to the
-     * application.
-     * The SecurityFilterChain is responsible for handling all security (Authentication and Authorization) aspects of
-     * HTTP requests.
+     * application. The SecurityFilterChain is responsible for handling all security (Authentication and Authorization)
+     * aspects of HTTP requests.
      *
-     * @param http                                   HttpSecurity Object for configuring web based security for specific
-     *                                               http requests.
-     * @param registeredClientRepository             A repository for OAuth 2.0 RegisteredClient(s).
-     * @param customAccessTokenFailureHandler        Access Token Failure Handlers
-     * @param customUserPwdAuthProvider              User Pwd authentication provider
-     * @param customAuthCodeFailureHandler           Auth Code Failure Handler
-     * @param tenantConfigurationService             Tenant configuration Service
-     * @param authenticationConfiguration            Exports the authentication Configuration
+     * @param http HttpSecurity Object for configuring web based security for specific http requests.
+     * @param registeredClientRepository A repository for OAuth 2.0 RegisteredClient(s).
+     * @param customAccessTokenFailureHandler Access Token Failure Handlers
+     * @param customUserPwdAuthProvider User Pwd authentication provider
+     * @param customAuthCodeFailureHandler Auth Code Failure Handler
+     * @param tenantConfigurationService Tenant configuration Service
+     * @param authenticationConfiguration Exports the authentication Configuration
      * @param authorizationSecurityContextRepository Security Context Repository
-     * @param oauth2AuthorizationService             Ignite Authorization Service
-     * @param authorizationRequestRepository         Authorization Request Repository
-     * @param clientRegistrationRepository           Client Registration Repository
-     * @param customScopeValidator                   Custom Scope Validator
+     * @param oauth2AuthorizationService Ignite Authorization Service
+     * @param authorizationRequestRepository Authorization Request Repository
+     * @param clientRegistrationRepository Client Registration Repository
+     * @param customScopeValidator Custom Scope Validator
      * @return Security Filter Chain with respect to applied Spring Security
      * @throws Exception May throw exception or subclass of exception
      */
-    @Bean
+    @Bean 
     @Order(1)
     public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                   RegisteredClientRepository registeredClientRepository,
-                                                   CustomAccessTokenFailureHandler customAccessTokenFailureHandler,
-                                                   CustomUserPwdAuthenticationProvider customUserPwdAuthProvider,
-                                                   CustomAuthCodeFailureHandler customAuthCodeFailureHandler,
-                                                   TenantConfigurationService tenantConfigurationService,
-                                                   AuthenticationConfiguration authenticationConfiguration,
-                                                   AuthorizationSecurityContextRepository
-                                                           authorizationSecurityContextRepository,
-                                                   OAuth2AuthorizationService oauth2AuthorizationService,
-                                                   AuthorizationRequestRepository authorizationRequestRepository,
-                                                   Optional<ClientRegistrationRepository> clientRegistrationRepository,
-                                                   CustomScopeValidator customScopeValidator)
-            throws Exception {
-        OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
+            RegisteredClientRepository registeredClientRepository,
+            CustomAccessTokenFailureHandler customAccessTokenFailureHandler,
+            CustomUserPwdAuthenticationProvider customUserPwdAuthProvider,
+            CustomAuthCodeFailureHandler customAuthCodeFailureHandler,
+            TenantConfigurationService tenantConfigurationService,
+            AuthenticationConfiguration authenticationConfiguration,
+            AuthorizationSecurityContextRepository authorizationSecurityContextRepository,
+            OAuth2AuthorizationService oauth2AuthorizationService,
+            AuthorizationRequestRepository authorizationRequestRepository,
+            Optional<ClientRegistrationRepository> clientRegistrationRepository,
+            CustomScopeValidator customScopeValidator,
+            DatabaseSecurityContextRepository databaseSecurityContextRepository) throws Exception {
 
         RequestCache requestCache = new CookieRequestCache();
         http.requestCache(requestCacheConfigurer -> requestCacheConfigurer.requestCache(requestCache));
-        SavedRequestAwareAuthenticationSuccessHandler savedRequestAwareAuthenticationSuccessHandler =
-                new SavedRequestAwareAuthenticationSuccessHandler();
+        SavedRequestAwareAuthenticationSuccessHandler savedRequestAwareAuthenticationSuccessHandler 
+                = new SavedRequestAwareAuthenticationSuccessHandler();
         savedRequestAwareAuthenticationSuccessHandler.setRequestCache(requestCache);
         http.sessionManagement(session -> session.sessionCreationPolicy(
                 SessionCreationPolicy.valueOf(sessionRecreationPolicy)));
-        DatabaseSecurityContextRepository databaseSecurityContextRepository = new DatabaseSecurityContextRepository(
-                authorizationSecurityContextRepository, tenantConfigurationService, sessionTimeout);
-        http.securityContext(securityContextConfigurer ->
-                securityContextConfigurer.securityContextRepository(databaseSecurityContextRepository));
 
-        CustomAuthCodeSuccessHandler customAuthCodeSuccessHandler = new CustomAuthCodeSuccessHandler(
-                databaseSecurityContextRepository, forceLogin);
+        http.securityContext(securityContextConfigurer -> securityContextConfigurer
+                .securityContextRepository(databaseSecurityContextRepository));
+        
 
-        http.securityMatchers(matchers -> matchers
-            .requestMatchers(antMatcher(REQUEST_MATCHER_PATTERN), antMatcher(LOGIN_MATCHER_PATTERN)))
-            .csrf(csrf -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse()));
+        // Configure login methods BEFORE authorization rules
+        if (tenantProperties.isExternalIdpEnabled()) {
+            enableOauthLogin(http, authorizationRequestRepository, clientRegistrationRepository);
+        }
+        if (!tenantProperties.isExternalIdpEnabled() || tenantProperties.isInternalLoginEnabled()) {
+            enableFormLogin(http);
+        }
 
+        // Configure security matchers and authorization rules
+        http.securityMatchers(matchers -> matchers.requestMatchers(antMatcher(REQUEST_MATCHER_PATTERN),
+                antMatcher(LOGIN_MATCHER_PATTERN), antMatcher(LOGOUT_MATCHER_PATTERN)))
+                .authorizeHttpRequests(authorize -> authorize.requestMatchers(antMatcher(LOGIN_MATCHER_PATTERN))
+                        .permitAll().requestMatchers(antMatcher(LOGOUT_MATCHER_PATTERN)).permitAll().anyRequest()
+                        .authenticated())
+                .csrf(csrf -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        .ignoringRequestMatchers(antMatcher(LOGOUT_MATCHER_PATTERN)));
         http.cors(corsCustomizer -> corsCustomizer.configurationSource(request -> {
             CorsConfiguration corsConfiguration = new CorsConfiguration();
-            corsConfiguration.setAllowedOriginPatterns(Stream.of(corsAllowedOriginPatterns.split(COMMA_DELIMITER))
-                .toList());
+            corsConfiguration
+                    .setAllowedOriginPatterns(Stream.of(corsAllowedOriginPatterns.split(COMMA_DELIMITER)).toList());
             corsConfiguration.setAllowedMethods(Stream.of(corsAllowedMethods.split(COMMA_DELIMITER)).toList());
             return corsConfiguration;
-        }));
-
-        http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
+        })); 
+        // Apply OAuth2 Authorization Server configuration
+        CustomAuthCodeSuccessHandler customAuthCodeSuccessHandler = new CustomAuthCodeSuccessHandler(
+                databaseSecurityContextRepository, forceLogin);
+        http.with(new OAuth2AuthorizationServerConfigurer(), oauth2 -> oauth2
                 .registeredClientRepository(registeredClientRepository)
-                .tokenEndpoint(tokenEndpoint -> tokenEndpoint
-                                .errorResponseHandler(customAccessTokenFailureHandler))
-                .authorizationEndpoint(authorizationEndpoint -> authorizationEndpoint
-                                .authenticationProvider(customUserPwdAuthProvider)
+                .tokenEndpoint(tokenEndpoint -> tokenEndpoint.errorResponseHandler(customAccessTokenFailureHandler))
+                .authorizationEndpoint(
+                        authorizationEndpoint -> authorizationEndpoint.authenticationProvider(customUserPwdAuthProvider)
                                 .authenticationProviders(configureAuthenticationValidator(customScopeValidator))
                                 .authorizationResponseHandler(customAuthCodeSuccessHandler)
                                 .errorResponseHandler(customAuthCodeFailureHandler))
@@ -201,44 +204,51 @@ public class IgniteSecurityConfig {
                         .errorResponseHandler(customAccessTokenFailureHandler))
                 .tokenRevocationEndpoint(tokenRevocationEndpointConfigurer -> tokenRevocationEndpointConfigurer
                         .revocationResponseHandler(new CustomRevocationSuccessHandler(oauth2AuthorizationService,
-                                databaseSecurityContextRepository)));
+                                databaseSecurityContextRepository))));
 
-        http.exceptionHandling(c -> c
-                        .defaultAuthenticationEntryPointFor(new LoginUrlAuthenticationEntryPoint(LOGIN_HANDLER),
-                                new MediaTypeRequestMatcher(MediaType.TEXT_HTML)))
+        http.exceptionHandling(c -> c.defaultAuthenticationEntryPointFor(
+                new LoginUrlAuthenticationEntryPoint(LOGIN_HANDLER), new MediaTypeRequestMatcher(MediaType.TEXT_HTML)))
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(withDefaults()));
         CustomUserPwdAuthenticationFilter customUserPwdAuthenticationFilter = new CustomUserPwdAuthenticationFilter(
                 authenticationConfiguration.getAuthenticationManager(), tenantConfigurationService);
         customUserPwdAuthenticationFilter.setSecurityContextRepository(databaseSecurityContextRepository);
-        customUserPwdAuthenticationFilter.setAuthenticationSuccessHandler(
-                savedRequestAwareAuthenticationSuccessHandler);
-        customUserPwdAuthenticationFilter.setAuthenticationFailureHandler(
-                new SimpleUrlAuthenticationFailureHandler(LOGIN_FAILURE_HANDLER));
+        customUserPwdAuthenticationFilter
+                .setAuthenticationSuccessHandler(savedRequestAwareAuthenticationSuccessHandler);
+        customUserPwdAuthenticationFilter
+                .setAuthenticationFailureHandler(new SimpleUrlAuthenticationFailureHandler(LOGIN_FAILURE_HANDLER));
         http.addFilterBefore(customUserPwdAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
-        if (tenantProperties.isExternalIdpEnabled()) {
-            enableOauthLogin(http, authorizationRequestRepository, clientRegistrationRepository);
-        }
-        if (!tenantProperties.isExternalIdpEnabled() || tenantProperties.isInternalLoginEnabled()) {
-            enableFormLogin(http);
-        }
         return http.build();
     }
 
     /**
-     * This method enables form-based login within the application.
-     * It configures the HttpSecurity object to allow all requests to the login page.
+     * This method creates an instance of DatabaseSecurityContextRepository.
+     *
+     * @param tenantConfigurationService TenantConfigurationService
+     * @param authorizationSecurityContextRepository AuthorizationSecurityContextRepository
+     * @return DatabaseSecurityContextRepository
+     */
+    @Bean
+    public DatabaseSecurityContextRepository createDatabaseSecurityContextRepository(
+            TenantConfigurationService tenantConfigurationService,
+            AuthorizationSecurityContextRepository authorizationSecurityContextRepository) {
+        return new DatabaseSecurityContextRepository(authorizationSecurityContextRepository, tenantConfigurationService,
+                sessionTimeout);
+    }
+
+    /**
+     * This method enables form-based login within the application. It configures the HttpSecurity object to allow form
+     * login.
      *
      * @param http HttpSecurity object used for configuring web based security for specific http requests.
      * @throws Exception May throw an exception if there's an error during the configuration.
      */
     private void enableFormLogin(HttpSecurity http) throws Exception {
-        http.formLogin(form -> form
-            .loginPage(LOGIN_HANDLER).permitAll());
+        http.formLogin(form -> form.loginPage(LOGIN_HANDLER));
     }
 
     /**
-     * This method enables OAuth-based login within the application.
-     * It configures the HttpSecurity object to allow all requests to the OAuth login page.
+     * This method enables OAuth-based login within the application. It configures the HttpSecurity object for OAuth
+     * login.
      *
      * @param http HttpSecurity object used for configuring web based security for specific http requests.
      * @param authorizationRequestRepository Repository for OAuth2 authorization requests.
@@ -246,44 +256,42 @@ public class IgniteSecurityConfig {
      * @throws Exception May throw an exception if there's an error during the configuration.
      */
     private void enableOauthLogin(HttpSecurity http, AuthorizationRequestRepository authorizationRequestRepository,
-                                  Optional<ClientRegistrationRepository> clientRegistrationRepository)
-        throws Exception {
+            Optional<ClientRegistrationRepository> clientRegistrationRepository) throws Exception {
         if (clientRegistrationRepository.isPresent()) {
             http.oauth2Login(oauth2Login -> oauth2Login
-                .authorizationEndpoint(authorizationEndpoint -> authorizationEndpoint
-                    .authorizationRequestRepository(new DatabaseAuthorizationRequestRepository(
-                        authorizationRequestRepository, clientRegistrationRepository.get())))
-                .authorizedClientService(new DatabaseAuthorizedClientService())
-                .loginPage(LOGIN_HANDLER).permitAll());
+                    .authorizationEndpoint(
+                            authorizationEndpoint -> authorizationEndpoint.authorizationRequestRepository(
+                                    new DatabaseAuthorizationRequestRepository(authorizationRequestRepository,
+                                            clientRegistrationRepository.get())))
+                    .authorizedClientService(new DatabaseAuthorizedClientService()).loginPage(LOGIN_HANDLER));
         }
     }
 
     /**
-     * This method configures the authentication validator for OAuth2 Authorization Code Request.
-     * It overrides the default scope validator with a custom one.
+     * This method configures the authentication validator for OAuth2 Authorization Code Request. It overrides the
+     * default scope validator with a custom one.
      *
      * @return A Consumer functional interface that accepts a list of AuthenticationProvider.
      */
-    private Consumer<List<AuthenticationProvider>> configureAuthenticationValidator(CustomScopeValidator
-                                                                                        customScopeValidator) {
-        return authenticationProviders ->
-            authenticationProviders.forEach(authenticationProvider -> {
-                if (authenticationProvider instanceof OAuth2AuthorizationCodeRequestAuthenticationProvider
+    private Consumer<List<AuthenticationProvider>> configureAuthenticationValidator(
+            CustomScopeValidator customScopeValidator) {
+        return authenticationProviders -> authenticationProviders.forEach(authenticationProvider -> {
+            if (authenticationProvider instanceof OAuth2AuthorizationCodeRequestAuthenticationProvider 
                     oauth2AuthorizationCodeRequestAuthenticationProvider) {
-                    Consumer<OAuth2AuthorizationCodeRequestAuthenticationContext> authenticationValidator =
+                Consumer<OAuth2AuthorizationCodeRequestAuthenticationContext> authenticationValidator =
                         // Reuse default redirect_uri validator
                         OAuth2AuthorizationCodeRequestAuthenticationValidator.DEFAULT_REDIRECT_URI_VALIDATOR
-                            // Override default scope validator
-                            .andThen(customScopeValidator);
-                    oauth2AuthorizationCodeRequestAuthenticationProvider
+                                // Override default scope validator
+                                .andThen(customScopeValidator);
+                oauth2AuthorizationCodeRequestAuthenticationProvider
                         .setAuthenticationValidator(authenticationValidator);
-                }
-            });
+            }
+        });
     }
 
     /**
-     * This method creates an instance of SessionRegistry which is used to manage sessions.
-     * The SessionRegistry keeps track of all sessions in the application.
+     * This method creates an instance of SessionRegistry which is used to manage sessions. The SessionRegistry keeps
+     * track of all sessions in the application.
      *
      * @return A SessionRegistry object that can be used to retrieve sessions.
      */
@@ -293,9 +301,9 @@ public class IgniteSecurityConfig {
     }
 
     /**
-     * This method creates an instance of HttpSessionEventPublisher.
-     * The HttpSessionEventPublisher is a Spring Framework class that publishes HttpSession-related events.
-     * It is typically used in combination with a SessionRegistry for session management.
+     * This method creates an instance of HttpSessionEventPublisher. The HttpSessionEventPublisher is a Spring Framework
+     * class that publishes HttpSession-related events. It is typically used in combination with a SessionRegistry for
+     * session management.
      *
      * @return A HttpSessionEventPublisher object that can be used to publish session events.
      */

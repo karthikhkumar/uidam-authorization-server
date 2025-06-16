@@ -40,109 +40,126 @@
             // Fetch and display password policy from backend
         }
 
-		function validatePassword() {
-            const passwordField = document.getElementById("password");
-            const usernameField = document.getElementById("email");
-            const errorFieldPassword = document.getElementById("passwordError");
-            const passwordMessageList = document.getElementById("password-message").children;
-            const password = passwordField.value;
-            const username = usernameField.value;
-            const policy = {
-                minLength: '[[${pwdMin}]]',
-                maxLength: '[[${pwdMax}]]',
-                regex: '[[${pwdRegex}]]',
-                noConsecutive: true
-            };
-
-            let isValid = true;
-            let messages = [];
-            let isValidPassMin = true;
-            let isValidPassMax = true;
-            let isValidusername = true;
-            let consecutive = true;
-            let regexValid = true;
-            if (password) {
-		
-                if (password.length < policy.minLength) {
-                    messages.push(`Password should contain atleast ${policy.minLength} characters.`);
-                    isValid = false;
-                    isValidPassMin = false;
-                    passwordMessageList[1].style.color = isValidPassMin ? "green" : "red";
-                    passwordMessageList[1].querySelector('i').className = "fas fa-times";
-                } else {
-                    passwordMessageList[1].style.color = isValidPassMin ? "green" : "red";
-                    passwordMessageList[1].querySelector('i').className = "fas fa-check";
-                }
-
-               /* if (password.length > policy.maxLength) {
-                    messages.push(`Password should contain ${policy.maxLength} characters.`);
-                    isValid = false;
-                    isValidPassMax = false;
-                    passwordMessageList[2].style.color = isValidPassMax ? "green" : "red";
-                    passwordMessageList[2].querySelector('i').className = "fas fa-times";
-                } else {
-                    passwordMessageList[2].style.color = isValidPassMax ? "green" : "red";
-                    passwordMessageList[2].querySelector('i').className = "fas fa-check";
-                }*/
-
-                if (username && password.includes(username)) {
-                    messages.push("Password must not contain email/username");
-                    isValid = false;
-                    isValidusername = false;
-                    passwordMessageList[0].style.color = isValidusername ? "green" : "red";
-                    passwordMessageList[0].querySelector('i').className = "fas fa-times";
-                } else {
-                    passwordMessageList[0].style.color = isValidusername ? "green" : "red";
-                    passwordMessageList[0].querySelector('i').className = "fas fa-check";
-                }
-  
-                if (/[A-Z]/.test(password)) {
-					passwordMessageList[2].style.color = "green";
-                    passwordMessageList[2].querySelector('i').className = "fas fa-check";
-                } else {
-					messages.push("Password should contain atleast One Uppercase");
-                    isValid = false;
-                    regexValid = false;
-					passwordMessageList[2].style.color = "red";
-                    passwordMessageList[2].querySelector('i').className = "fas fa-times";
-				}
-
-				if (/[a-z]/.test(password)) {
-					passwordMessageList[3].style.color = "green";
-                    passwordMessageList[3].querySelector('i').className = "fas fa-check";
-                } else {
-					messages.push("Password should contain atleast One Lowercase");
-                    isValid = false;
-                    regexValid = false;
-					passwordMessageList[3].style.color = "red";
-                    passwordMessageList[3].querySelector('i').className = "fas fa-times";
-				}
-
-				if (/[0-9]/.test(password)) {
-					passwordMessageList[4].style.color = "green";
-                    passwordMessageList[4].querySelector('i').className = "fas fa-check";
-                } else {
-					messages.push("Password should contain atleast One Number");
-                    isValid = false;
-                    regexValid = false;
-					passwordMessageList[4].style.color = "red";
-                    passwordMessageList[4].querySelector('i').className = "fas fa-times";
-				}
-				
-				if (/[-+=!$%^&*()_|~`{}\[\]:\/;<>?,.@#'"\s]/.test(password.trim()) && !(/^\s+|\s+$/.test(password)) || password.indexOf('\\') >= 0 ) {
-					passwordMessageList[5].style.color = "green";
-                    passwordMessageList[5].querySelector('i').className = "fas fa-check";
-				} else {
-					messages.push("Password should contain atleast One special character and should not contain space");
-                    isValid = false;
-                    regexValid = false;
-					passwordMessageList[5].style.color = "red";
-                    passwordMessageList[5].querySelector('i').className = "fas fa-times";
-				}
-
-                return isValid;
-            } 
+        
+        function containsForbiddenCharacters(password) {
+            const forbiddenChars = /[\[\]{}]/;
+            return forbiddenChars.test(password);
         }
+
+        function findRuleIndex(keyword, passwordMessageList) {
+			for (let i = 0; i < passwordMessageList.length; i++) {
+			const text = passwordMessageList[i].innerText.toLowerCase();
+			if (text.includes(keyword.toLowerCase())) {
+			return i;
+			}
+			}
+			return -1;
+		}
+
+		function updateValidationUIByKeyword(keyword, isValid, passwordMessageList) {
+			const index = findRuleIndex(keyword , passwordMessageList);
+			if (index !== -1) {
+				const element = passwordMessageList[index];
+				element.style.color = isValid ? "green" : "red";
+				element.querySelector('i').className = isValid ? "fas fa-check" : "fas fa-times";
+			}
+		}
+  		function decodeHtmlEntities(str) {
+			const txt = document.createElement('textarea');
+			txt.innerHTML = str;
+			return txt.value;
+		}
+
+	    function validatePassword() {
+			const passwordField = document.getElementById("password");
+             const usernameField = document.getElementById("email");
+			const errorFieldPassword = document.getElementById("passwordError");
+			const passwordMessageList = document.querySelectorAll("#password-message li");
+			const password = passwordField.value.trim();
+            const username = usernameField.value;
+			const policy = {
+				minLength: parseInt('[[${pwdMin}]]'),
+				maxLength: parseInt('[[${pwdMax}]]'),
+				minUppercase: parseInt('[[${minUppercase}]]'),
+				minLowercase: parseInt('[[${minLowercase}]]'),
+				minDigits: parseInt('[[${minDigits}]]'),
+				allowedSpecialChars: '[[${allowedSpecialChars}]]',
+				minSpecialChars: parseInt('[[${minSpecialChars}]]'),
+				minConsecutiveLettersLength: parseInt('[[${minConsecutiveLettersLength}]]'),
+			};
+        	let isValid = true;
+			let messages = [];
+			const minLengthValid = password.length >= policy.minLength;
+			updateValidationUIByKeyword("characters minimum", minLengthValid, passwordMessageList);
+			if (!minLengthValid) {
+			isValid = false;
+			messages.push(`Password should contain at least ${policy.minLength} characters.`);
+			}
+			const maxLengthValid = password.length <= policy.maxLength;
+			updateValidationUIByKeyword("characters maximum", maxLengthValid, passwordMessageList);
+			if (!maxLengthValid) {
+				isValid = false;
+				messages.push(`Password should not exceed ${policy.maxLength} characters.`);
+			}
+			const uppercaseValid = (password.match(/[A-Z]/g) || []).length >= policy.minUppercase;
+			updateValidationUIByKeyword("uppercase", uppercaseValid, passwordMessageList);
+			if (!uppercaseValid) {
+			isValid = false;
+			messages.push(`Password should contain at least ${policy.minUppercase} uppercase letter(s).`);
+			}
+			const lowercaseValid = (password.match(/[a-z]/g) || []).length >= policy.minLowercase;
+			updateValidationUIByKeyword("lowercase", lowercaseValid, passwordMessageList);
+			if (!lowercaseValid) {
+			isValid = false;
+			messages.push(`Password should contain at least ${policy.minLowercase} lowercase letter(s).`);
+			}
+			const digitValid = (password.match(/[0-9]/g) || []).length >= policy.minDigits;
+			updateValidationUIByKeyword("number", digitValid, passwordMessageList);
+			if (!digitValid) {
+			isValid = false;
+			messages.push(`Password should contain at least ${policy.minDigits} digit(s).`);
+			}
+
+		    const rawAllowed = policy.allowedSpecialChars || "!@#$%^&*";
+            const allowedSpecialChars = decodeHtmlEntities(rawAllowed); 
+
+            const escaped = allowedSpecialChars.replace(/[-[\]/{}()*+?.\\^$|]/g, '\\$&');
+            const specialCharRegex = new RegExp(`[${escaped}]`, 'g');
+            const specialCharCount = (password.match(specialCharRegex) || []).length;
+			const minSpecialValid = specialCharCount >= policy.minSpecialChars;
+
+            const hasSpecialChar = specialCharRegex.test(password) && !/^\s+|\s+$/.test(password);
+            updateValidationUIByKeyword("and should not contain space", hasSpecialChar, passwordMessageList);
+            if (!hasSpecialChar) {
+                isValid = false;
+                messages.push(`Password should contain ${policy.minSpecialChars} special character and should not contain space.`);
+            }
+
+        	const forbiddenValid = !containsForbiddenCharacters(password);
+			updateValidationUIByKeyword("should not contain special characters", forbiddenValid, passwordMessageList);
+			if (!forbiddenValid) {
+			isValid = false;
+			messages.push("Password should not contain special characters: [ ] { }");
+			}
+
+            const simpleUsername = username.split('@')[0].toLowerCase();
+          
+            const noUsernameValid = !password.toLowerCase().includes(simpleUsername);
+            updateValidationUIByKeyword("email/username", noUsernameValid, passwordMessageList);
+            if (!noUsernameValid) {
+            isValid = false;
+            messages.push("Password must not contain email/username.");
+            }
+
+            const noConsecutiveValid = !containsConsecutiveFromUsername(password, simpleUsername, policy.minConsecutiveLettersLength);
+            updateValidationUIByKeyword("sequence of", noConsecutiveValid, passwordMessageList);
+            if (!noConsecutiveValid) {
+            isValid = false;
+            messages.push(`Password must not contain a sequence of ${policy.minConsecutiveLettersLength} or more characters from the username.`);
+            }
+        
+		    return isValid;
+		}
 		document.addEventListener("DOMContentLoaded", function () {
             const passwordField = document.getElementById("password");
 			const passwordMessageList = document.getElementById("password-message").children;
@@ -156,21 +173,26 @@
 						message.querySelector('i').className = "fas fa-times";
 					});
 
-					return; // Exit the function early if password is empty
+					return; 
 				}
-                validatePassword(passwordField.value);
+                validatePassword();
             });
            
         });
-		function containsConsecutiveLetters(password, username, length) {
-            for (let i = 0; i <= username.length - length; i++) {
-                const substring = username.substring(i, i + length);
-                if (password.includes(substring)) {
-                    return true;
-                }
+	
+        function containsConsecutiveFromUsername(password, username, minLength) {
+            const lowerPassword = password.toLowerCase();
+            const lowerUsername = username.toLowerCase();
+            for (let i = 0; i <= lowerUsername.length - minLength; i++) {
+            const substring = lowerUsername.substring(i, i + minLength);
+            if (lowerPassword.includes(substring)) {
+                console.log("Matches ", substring);
+            return true;
+            }
             }
             return false;
         }
+
 		
         var passwordConfirm = function() {
             if (document.getElementById("password").value ==
@@ -377,7 +399,7 @@
 
 </div>
 <div class="rights" th:fragment="footer">
-    ©<script>document.write(new Date().getFullYear());</script> HARMAN International. All Rights Reserved.
+    ï¿½<script>document.write(new Date().getFullYear());</script> HARMAN International. All Rights Reserved.
 </div>
 </body>
 </html>

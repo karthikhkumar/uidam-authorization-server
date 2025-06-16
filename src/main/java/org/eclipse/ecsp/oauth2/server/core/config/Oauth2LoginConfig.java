@@ -145,8 +145,7 @@ public class Oauth2LoginConfig {
      * @param externalIdpRegisteredClient the details of the external identity provider.
      * @return the created ClientRegistration.
      */
-    protected ClientRegistration externalIdpClientRegistration(
-            ExternalIdpRegisteredClient externalIdpRegisteredClient) {
+    private ClientRegistration externalIdpClientRegistration(ExternalIdpRegisteredClient externalIdpRegisteredClient) {
         LOGGER.debug("## externalIdpClientRegistration - START");
         LOGGER.info("Registering client of provider, {}", externalIdpRegisteredClient.getClientName());
         return ClientRegistration.withRegistrationId(externalIdpRegisteredClient.getRegistrationId())

@@ -33,22 +33,15 @@ import java.io.Serializable;
 @Setter
 public class PasswordPolicyResponseDto implements Serializable {
 
-    private static final long serialVersionUID = 1L;
-    /**
-     * The minimum length required for a password.
-     */
+    private static final long serialVersionUID = 3558606548747012883L;
     private int minLength;
-
-    /**
-     * The maximum length allowed for a password.
-     */
     private int maxLength;
-
-    /**
-     * The minimum number of consecutive letters of username that should not be in password.
-     */
     private int minConsecutiveLettersLength;
-
-    private String passwordRegex;
+    private int minSpecialChars;
+    private String allowedSpecialChars;
+    private String excludedSpecialChars;
+    private int minUppercase;
+    private int minLowercase;
+    private int minDigits;
 
 }

@@ -31,7 +31,6 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
-import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
@@ -96,19 +95,6 @@ class DatabaseSecurityContextRepositoryTest {
         this.tenantProperties = mock(TenantProperties.class);
         tenantConfigurationService = new TenantConfigurationService(tenantProperties);
         request = new MockHttpServletRequest();
-        // Create a MockHttpSession
-        MockHttpSession session = new MockHttpSession() {
-            @Override
-            public String getId() {
-                return REQUESTED_SESSION_ID; // Return your desired session ID
-            }
-        };
-
-        // Attach the session to the request
-        request.setSession(session);
-
-        // Attach the session to the request
-        request.setSession(session);
         request.setRequestedSessionId(REQUESTED_SESSION_ID);
         response = new MockHttpServletResponse();
         databaseSecurityContextRepository = new DatabaseSecurityContextRepository(

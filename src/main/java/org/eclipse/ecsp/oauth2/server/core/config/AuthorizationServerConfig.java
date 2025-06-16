@@ -29,12 +29,15 @@ import org.eclipse.ecsp.oauth2.server.core.authentication.customizer.FederatedId
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
 import org.eclipse.ecsp.oauth2.server.core.exception.KeyGenerationException;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
+import org.eclipse.ecsp.oauth2.server.core.utils.PasswordUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.OAuth2Token;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
@@ -73,6 +76,8 @@ public class AuthorizationServerConfig {
     @Value("${ignite.oauth2.issuer.prefix:}")
     private String issuerPrefix;
 
+    @Value("${security.client.bcrypt.strength:high}")
+    private String bcryptLength;
 
     private TenantProperties tenantProperties;
 
@@ -217,4 +222,13 @@ public class AuthorizationServerConfig {
         return issuerProtocol + "://" + issuerHost + issuerPrefix;
     }
 
+    /**
+     * This method creates an instance of PasswordEncoder.
+     *
+     * @return a PasswordEncoder for client secret password encoding.
+     */
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder(PasswordUtils.UIDAM_BCRYPT_STRENGTH_MAP.get(bcryptLength));
+    }
 }

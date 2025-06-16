@@ -61,10 +61,10 @@ public final class AuthorizationServerConstants {
     public static final String SECRET_LITERAL = "secret";
     public static final String PASSWORD = "Password";
     public static final String SLASH = "/";
-    public static final int DEFAULT_PWD_MIN_LENGTH = 10;
-    public static final int DEFAULT_PWD_MAX_LENGTH = 50;
-    public static final String DEFAULT_PWD_REGEX =
-            "^(?=.*\\d)(?=.*[!@#$%^&*()_+\\-=\\[\\]{};':\"\\\\|,.<>\\/?]).{10,50}$";
+    public static final int DEFAULT_MIN_LENGTH = 10;
+    public static final int DEFAULT_MAX_LENGTH = 50;
+    public static final String DEFAULT_ALLOWEDSPECIALCHARS = "!@#$%^&*()_-+=<>?";
+    public static final String DEFAULT_EXCLUDEDSPECIALCHARS = "[]{}";
     // Error messages
     public static final String FAILED_TO_CREATE_USER_WITH_USERNAME = "Failed to create user with username: {}";
     public static final String USER_ALREADY_EXISTS_PLEASE_TRY_AGAIN = "The user already exists. Please try again "
@@ -91,9 +91,9 @@ public final class AuthorizationServerConstants {
     public static final String EMAIL_SENT_PREFIX = "An email was sent to:\n";
     public static final String EMAIL_SENT_SUFFIX = "Please check your email and verify your account.";
 
-    public static final String SIGN_UP_NOT_ENABLED = "Sign up not enabled";
-
+    public static final String SIGN_UP_NOT_ENABLED = "Sign up not enabled";    
     public static final String BEGIN_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----";
     public static final String END_PUBLIC_KEY = "-----END PUBLIC KEY-----";
     public static final String SCOPE = "scope";
+    public static final String CLIENT_ID = "client_id";
 }

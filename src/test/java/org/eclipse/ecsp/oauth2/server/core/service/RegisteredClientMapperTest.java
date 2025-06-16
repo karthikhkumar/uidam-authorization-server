@@ -34,6 +34,7 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.stream.Stream;
 
@@ -62,6 +63,7 @@ class RegisteredClientMapperTest {
     @BeforeEach
     void setup() {
         MockitoAnnotations.openMocks(this);
+        ReflectionTestUtils.setField(registeredClientMapper, "bcryptLength", "high");
     }
 
     /**

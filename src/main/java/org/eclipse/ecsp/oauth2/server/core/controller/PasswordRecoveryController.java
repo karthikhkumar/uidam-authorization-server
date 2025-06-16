@@ -31,6 +31,7 @@ import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantPropert
 import org.eclipse.ecsp.oauth2.server.core.exception.InvalidSecretException;
 import org.eclipse.ecsp.oauth2.server.core.exception.PasswordRecoveryException;
 import org.eclipse.ecsp.oauth2.server.core.exception.UserNotFoundException;
+import org.eclipse.ecsp.oauth2.server.core.service.PasswordPolicyService;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
 import org.eclipse.ecsp.oauth2.server.core.service.impl.CaptchaServiceImpl;
 import org.slf4j.Logger;
@@ -88,6 +89,8 @@ public class PasswordRecoveryController {
     @Autowired
     private CaptchaServiceImpl captchaServiceImpl;
 
+    private final PasswordPolicyService passwordPolicyService;
+
     /**
      * This is the constructor for the PasswordRecoveryController class.
      * It initializes the tenant properties using the provided TenantConfigurationService.
@@ -95,8 +98,10 @@ public class PasswordRecoveryController {
      * @param tenantConfigurationService The service that provides the tenant configuration.
      */
     @Autowired
-    public PasswordRecoveryController(TenantConfigurationService tenantConfigurationService) {
+    public PasswordRecoveryController(TenantConfigurationService tenantConfigurationService,
+            PasswordPolicyService passwordPolicyService) {
         tenantProperties = tenantConfigurationService.getTenantProperties(UIDAM);
+        this.passwordPolicyService = passwordPolicyService;
     }
 
     private static final String MESSAGE_LITERAL = "message";
@@ -160,7 +165,6 @@ public class PasswordRecoveryController {
      */
     @GetMapping("reset/{encodedParams}")
     public ModelAndView changePassword(@PathVariable("encodedParams") String encodedParams, Model model
-
     ) throws UnsupportedEncodingException {
 
         String decodedParams;
@@ -180,7 +184,7 @@ public class PasswordRecoveryController {
         model.addAttribute(SECRET_LITERAL, secret);
         model.addAttribute(CAPTCHA_FIELD_ENABLED, true);
         model.addAttribute(CAPTCHA_SITE, tenantProperties.getCaptcha().getRecaptchaKeySite());
-
+        passwordPolicyService.setupPasswordPolicy(model, true);
         return new ModelAndView(RECOVERY_CHANGE_PASSWORD).addObject(model);
     }
 

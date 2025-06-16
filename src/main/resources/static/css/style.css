@@ -322,7 +322,7 @@ body {
 .container-error {
   text-align: center;
   padding-bottom: 20px;
-  color: Red;
+  color: Red !important;
   font-weight: 600;
   font-size: 14px;
 }

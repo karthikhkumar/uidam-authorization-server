@@ -18,12 +18,11 @@
 
 package org.eclipse.ecsp.oauth2.server.core.controller;
 
-
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.prometheus.client.CollectorRegistry;
 import org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants;
 import org.eclipse.ecsp.oauth2.server.core.entities.Authorization;
 import org.eclipse.ecsp.oauth2.server.core.repositories.AuthorizationRepository;
+import org.eclipse.ecsp.oauth2.server.core.service.ClientRegistrationManager;
 import org.eclipse.ecsp.oauth2.server.core.utils.JwtTokenValidator;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,7 +35,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
@@ -57,9 +55,9 @@ import static org.mockito.Mockito.when;
 /**
  * This class tests the functionality of the AuthorizationController.
  */
-@ActiveProfiles("test")
-@TestPropertySource("classpath:application-test.properties")
-@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
+@ActiveProfiles("test") 
+@TestPropertySource("classpath:application-test.properties") 
+@SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT) 
 @AutoConfigureWebTestClient(timeout = "3600000")
 class AuthorizationControllerTest {
     @MockitoBean
@@ -69,28 +67,26 @@ class AuthorizationControllerTest {
     JwtTokenValidator jwtTokenValidator;
 
     @MockitoBean
-    RegisteredClientRepository registeredClientRepository;
+    ClientRegistrationManager clientRegistrationManager;
 
     @Autowired
     private WebTestClient webTestClient;
 
     /**
-     * This method is executed before and after each test.
-     * It clears the default registry of the CollectorRegistry.
+     * This method is executed before and after each test. It clears the default registry of the CollectorRegistry.
      */
-    @BeforeEach
+    @BeforeEach 
     @AfterEach
     void cleanup() {
         CollectorRegistry.defaultRegistry.clear();
     }
 
     /**
-     * This test method tests the scenario where the revoke token request is successful.
-     * It sets up the necessary parameters and then calls the revoke token method.
-     * The test asserts that the returned status is HttpStatus.OK.
+     * This test method tests the scenario where the revoke token request is successful. It sets up the necessary
+     * parameters and then calls the revoke token method. The test asserts that the returned status is HttpStatus.OK.
      */
     @Test
-    void testRevokeToken() throws JsonProcessingException {
+    void testRevokeToken() {
         Authorization auth = new Authorization();
         auth.setRegisteredClientId("testClient");
         auth.setPrincipalName("testClient");
@@ -105,39 +101,31 @@ class AuthorizationControllerTest {
         auth.setAccessTokenType(OAuth2TokenType.ACCESS_TOKEN.getValue());
         auth.setAccessTokenValue(DUMMY_TOKEN);
 
-        List<Authorization> list = new  ArrayList<>();
+        List<Authorization> list = new ArrayList<>();
         list.add(auth);
-        when(authorizationRepository
-            .findByPrincipalNameAndAccessTokenExpiresAt(eq("testClient"), any())).thenReturn(list);
+        when(authorizationRepository.findByPrincipalNameAndAccessTokenExpiresAt(eq("testClient"), any()))
+                .thenReturn(list);
 
-        RegisteredClient registeredClient = RegisteredClient.withId("testClient")
-            .clientId("testClient")
-            .clientSecret("ChangeMe")
-            .authorizationGrantType(new AuthorizationGrantType("client_credentials"))
-            .scope("RevokeToken")
-            .build();
-        when(registeredClientRepository.findById("testClient")).thenReturn(registeredClient);
+        RegisteredClient registeredClient = RegisteredClient.withId("testClient").clientId("testClient")
+                .clientSecret("ChangeMe").authorizationGrantType(new AuthorizationGrantType("client_credentials"))
+                .scope("RevokeToken").build();
+        when(clientRegistrationManager.findById("testClient")).thenReturn(registeredClient);
         when(jwtTokenValidator.validateToken(DUMMY_TOKEN)).thenReturn(true);
-        webTestClient.post()
-            .uri("/revoke/revokeByAdmin")
-            .headers(http -> {
-                http.add("Authorization", "Bearer " + DUMMY_TOKEN);
-                http.add("Content-Type", "application/x-www-form-urlencoded");
-                http.add(IgniteOauth2CoreConstants.CORRELATION_ID, "abcd");
-            })
-            .bodyValue("clientId=testClient")
-            .exchange()
-            .expectStatus().isEqualTo(HttpStatus.OK);
+        webTestClient.post().uri("/revoke/revokeByAdmin").headers(http -> {
+            http.add("Authorization", "Bearer " + DUMMY_TOKEN);
+            http.add("Content-Type", "application/x-www-form-urlencoded");
+            http.add(IgniteOauth2CoreConstants.CORRELATION_ID, "abcd");
+        }).bodyValue("clientId=testClient").exchange().expectStatus().isEqualTo(HttpStatus.OK);
 
     }
 
     /**
-     * This test method tests the scenario where the revoke token request is successful but there is no active token.
-     * It sets up the necessary parameters and then calls the revoke token method.
-     * The test asserts that the returned status is HttpStatus.OK.
+     * This test method tests the scenario where the revoke token request is successful but there is no active token. It
+     * sets up the necessary parameters and then calls the revoke token method. The test asserts that the returned
+     * status is HttpStatus.OK.
      */
     @Test
-    void testRevokeTokenNoActiveToken() throws JsonProcessingException {
+    void testRevokeTokenNoActiveToken() {
         Authorization auth = new Authorization();
         auth.setRegisteredClientId("testClient");
         auth.setPrincipalName("testClient");
@@ -155,129 +143,25 @@ class AuthorizationControllerTest {
         when(authorizationRepository.findByAccessTokenValue("abcd")).thenReturn(Optional.of(auth));
         when(jwtTokenValidator.validateToken(DUMMY_TOKEN)).thenReturn(true);
 
-        RegisteredClient registeredClient = RegisteredClient.withId("testClient")
-            .clientId("testClient")
-            .clientSecret("ChangeMe")
-            .authorizationGrantType(new AuthorizationGrantType("client_credentials"))
-            .scope("RevokeToken")
-            .build();
-        when(registeredClientRepository.findById("testClient")).thenReturn(registeredClient);
-        webTestClient.post()
-            .uri("/revoke/revokeByAdmin")
-            .headers(http -> {
-                http.add("Authorization", "Bearer " + DUMMY_TOKEN);
-                http.add("Content-Type", "application/x-www-form-urlencoded");
-                http.add(IgniteOauth2CoreConstants.CORRELATION_ID, "abcd");
-            })
-            .bodyValue("clientId=testClient")
-            .exchange()
-            .expectStatus().isEqualTo(HttpStatus.OK);
+        RegisteredClient registeredClient = RegisteredClient.withId("testClient").clientId("testClient")
+                .clientSecret("ChangeMe").authorizationGrantType(new AuthorizationGrantType("client_credentials"))
+                .scope("RevokeToken").build();
+        when(clientRegistrationManager.findById("testClient")).thenReturn(registeredClient);
+        webTestClient.post().uri("/revoke/revokeByAdmin").headers(http -> {
+            http.add("Authorization", "Bearer " + DUMMY_TOKEN);
+            http.add("Content-Type", "application/x-www-form-urlencoded");
+            http.add(IgniteOauth2CoreConstants.CORRELATION_ID, "abcd");
+        }).bodyValue("clientId=testClient").exchange().expectStatus().isEqualTo(HttpStatus.OK);
 
     }
 
     /**
-     * This test method tests the scenario where the revoke token request throws an exception.
-     * It sets up the necessary parameters and then calls the revoke token method.
-     * The test asserts that the returned status is HttpStatus.INTERNAL_SERVER_ERROR.
+     * This test method tests the scenario where the revoke token request throws an exception. It sets up the necessary
+     * parameters and then calls the revoke token method. The test asserts that the returned status is
+     * HttpStatus.INTERNAL_SERVER_ERROR.
      */
     @Test
-    void testRevokeTokenException() throws JsonProcessingException {
-        Authorization auth = new Authorization();
-        auth.setRegisteredClientId("testClient");
-        auth.setPrincipalName("testClient");
-        auth.setAuthorizationGrantType("client_credentials");
-        auth.setAccessTokenMetadata(TOKEN_METADATA);
-
-        auth.setAttributes("{\"@class\":\"java.util.Collections$UnmodifiableMap\"}");
-        auth.setAccessTokenExpiresAt(Instant.now().plusSeconds(SECONDS_TO_ADD3));
-
-        auth.setAccessTokenScopes("RevokeToken");
-        auth.setAuthorizedScopes("RevokeToken");
-        auth.setAccessTokenType(OAuth2TokenType.ACCESS_TOKEN.getValue());
-        auth.setAccessTokenValue(DUMMY_TOKEN);
-
-        when(jwtTokenValidator.validateToken(DUMMY_TOKEN)).thenReturn(true);
-        when(authorizationRepository.findByAccessTokenValue("abcd")).thenReturn(Optional.of(auth));
-        List<Authorization> list = new  ArrayList<>();
-        list.add(auth);
-        when(authorizationRepository
-            .findByPrincipalNameAndAccessTokenExpiresAt(eq("testClient"), any())).thenThrow(new RuntimeException());
-
-        RegisteredClient registeredClient = RegisteredClient.withId("testClient")
-            .clientId("testClient")
-            .clientSecret("ChangeMe")
-            .authorizationGrantType(new AuthorizationGrantType("client_credentials"))
-            .scope("RevokeToken")
-            .build();
-        when(registeredClientRepository.findById("testClient")).thenReturn(registeredClient);
-        webTestClient.post()
-            .uri("/revoke/revokeByAdmin")
-            .headers(http -> {
-                http.add("Authorization", "Bearer " + DUMMY_TOKEN);
-                http.add("Content-Type", "application/x-www-form-urlencoded");
-                http.add(IgniteOauth2CoreConstants.CORRELATION_ID, "abcd");
-            })
-            .bodyValue("clientId=testClient")
-            .exchange()
-            .expectStatus().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
-
-    }
-
-    /**
-     * This test method tests the scenario where the revoke token request is successful for a user.
-     * It sets up the necessary parameters and then calls the revoke token method.
-     * The test asserts that the returned status is HttpStatus.OK.
-     */
-    @Test
-    void testRevokeTokenForUser() throws JsonProcessingException {
-        Authorization auth = new Authorization();
-        auth.setRegisteredClientId("testClient");
-        auth.setPrincipalName("testClient");
-        auth.setAuthorizationGrantType("client_credentials");
-        auth.setAccessTokenMetadata(TOKEN_METADATA);
-
-        auth.setAttributes("{\"@class\":\"java.util.Collections$UnmodifiableMap\"}");
-        auth.setAccessTokenExpiresAt(Instant.now().plusSeconds(SECONDS_TO_ADD3));
-
-        auth.setAccessTokenScopes("RevokeToken");
-        auth.setAuthorizedScopes("RevokeToken");
-        auth.setAccessTokenType(OAuth2TokenType.ACCESS_TOKEN.getValue());
-        auth.setAccessTokenValue(DUMMY_TOKEN);
-
-        when(jwtTokenValidator.validateToken(DUMMY_TOKEN)).thenReturn(true);
-        when(authorizationRepository.findByAccessTokenValue("abcd")).thenReturn(Optional.of(auth));
-        List<Authorization> list = new  ArrayList<>();
-        list.add(auth);
-        when(authorizationRepository
-            .findByPrincipalNameAndAccessTokenExpiresAt(eq("testClient"), any())).thenReturn(list);
-
-        RegisteredClient registeredClient = RegisteredClient.withId("testClient")
-            .clientId("testClient")
-            .clientSecret("ChangeMe")
-            .authorizationGrantType(new AuthorizationGrantType("client_credentials"))
-            .scope("RevokeToken")
-            .build();
-        when(registeredClientRepository.findById("testClient")).thenReturn(registeredClient);
-        webTestClient.post()
-            .uri("/revoke/revokeByAdmin")
-            .headers(http -> {
-                http.add("Authorization", "Bearer " + DUMMY_TOKEN);
-                http.add("Content-Type", "application/x-www-form-urlencoded");
-                http.add(IgniteOauth2CoreConstants.CORRELATION_ID, "abcd");
-            })
-            .bodyValue("username=testClient")
-            .exchange()
-            .expectStatus().isEqualTo(HttpStatus.OK);
-
-    }
-
-    /**
-     * This test method tests the scenario where the revoke token request is unsuccessful due to no principal name.
-     * It sets up the necessary parameters and then calls the revoke token method.
-     * The test asserts that the returned status is HttpStatus.BAD_REQUEST.
-     */
-    @Test
-    void testRevokeTokenNoPrincipalNameException() throws JsonProcessingException {
+    void testRevokeTokenException() {
         Authorization auth = new Authorization();
         auth.setRegisteredClientId("testClient");
         auth.setPrincipalName("testClient");
@@ -296,57 +180,125 @@ class AuthorizationControllerTest {
         when(authorizationRepository.findByAccessTokenValue("abcd")).thenReturn(Optional.of(auth));
         List<Authorization> list = new ArrayList<>();
         list.add(auth);
-        when(authorizationRepository
-            .findByPrincipalNameAndAccessTokenExpiresAt(eq("testClient"), any())).thenReturn(list);
+        when(authorizationRepository.findByPrincipalNameAndAccessTokenExpiresAt(eq("testClient"), any()))
+                .thenThrow(new RuntimeException());
 
-        RegisteredClient registeredClient = RegisteredClient.withId("testClient")
-            .clientId("testClient")
-            .clientSecret("ChangeMe")
-            .authorizationGrantType(new AuthorizationGrantType("client_credentials"))
-            .scope("RevokeToken")
-            .build();
-        when(registeredClientRepository.findById("testClient")).thenReturn(registeredClient);
-        webTestClient.post()
-            .uri("/revoke/revokeByAdmin")
-            .headers(http -> {
-                http.add("Authorization", "Bearer " + DUMMY_TOKEN);
-                http.add("Content-Type", "application/x-www-form-urlencoded");
-                http.add(IgniteOauth2CoreConstants.CORRELATION_ID, "abcd");
-            })
-
-            .exchange()
-            .expectStatus().isEqualTo(HttpStatus.BAD_REQUEST);
+        RegisteredClient registeredClient = RegisteredClient.withId("testClient").clientId("testClient")
+                .clientSecret("ChangeMe").authorizationGrantType(new AuthorizationGrantType("client_credentials"))
+                .scope("RevokeToken").build();
+        when(clientRegistrationManager.findById("testClient")).thenReturn(registeredClient);
+        webTestClient.post().uri("/revoke/revokeByAdmin").headers(http -> {
+            http.add("Authorization", "Bearer " + DUMMY_TOKEN);
+            http.add("Content-Type", "application/x-www-form-urlencoded");
+            http.add(IgniteOauth2CoreConstants.CORRELATION_ID, "abcd");
+        }).bodyValue("clientId=testClient").exchange().expectStatus().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
 
     }
 
     /**
-     * This test method tests the scenario where the revoke token request is unauthorized.
-     * It sets up the necessary parameters and then calls the revoke token method.
-     * The test asserts that the returned status is HttpStatus.UNAUTHORIZED.
+     * This test method tests the scenario where the revoke token request is successful for a user. It sets up the
+     * necessary parameters and then calls the revoke token method. The test asserts that the returned status is
+     * HttpStatus.OK.
+     */
+    @Test
+    void testRevokeTokenForUser() {
+        Authorization auth = new Authorization();
+        auth.setRegisteredClientId("testClient");
+        auth.setPrincipalName("testClient");
+        auth.setAuthorizationGrantType("client_credentials");
+        auth.setAccessTokenMetadata(TOKEN_METADATA);
+
+        auth.setAttributes("{\"@class\":\"java.util.Collections$UnmodifiableMap\"}");
+        auth.setAccessTokenExpiresAt(Instant.now().plusSeconds(SECONDS_TO_ADD3));
+
+        auth.setAccessTokenScopes("RevokeToken");
+        auth.setAuthorizedScopes("RevokeToken");
+        auth.setAccessTokenType(OAuth2TokenType.ACCESS_TOKEN.getValue());
+        auth.setAccessTokenValue(DUMMY_TOKEN);
+
+        when(jwtTokenValidator.validateToken(DUMMY_TOKEN)).thenReturn(true);
+        when(authorizationRepository.findByAccessTokenValue("abcd")).thenReturn(Optional.of(auth));
+        List<Authorization> list = new ArrayList<>();
+        list.add(auth);
+        when(authorizationRepository.findByPrincipalNameAndAccessTokenExpiresAt(eq("testClient"), any()))
+                .thenReturn(list);
+
+        RegisteredClient registeredClient = RegisteredClient.withId("testClient").clientId("testClient")
+                .clientSecret("ChangeMe").authorizationGrantType(new AuthorizationGrantType("client_credentials"))
+                .scope("RevokeToken").build();
+        when(clientRegistrationManager.findById("testClient")).thenReturn(registeredClient);
+        webTestClient.post().uri("/revoke/revokeByAdmin").headers(http -> {
+            http.add("Authorization", "Bearer " + DUMMY_TOKEN);
+            http.add("Content-Type", "application/x-www-form-urlencoded");
+            http.add(IgniteOauth2CoreConstants.CORRELATION_ID, "abcd");
+        }).bodyValue("username=testClient").exchange().expectStatus().isEqualTo(HttpStatus.OK);
+
+    }
+
+    /**
+     * This test method tests the scenario where the revoke token request is unsuccessful due to no principal name. It
+     * sets up the necessary parameters and then calls the revoke token method. The test asserts that the returned
+     * status is HttpStatus.BAD_REQUEST.
+     */
+    @Test
+    void testRevokeTokenNoPrincipalNameException() {
+        Authorization auth = new Authorization();
+        auth.setRegisteredClientId("testClient");
+        auth.setPrincipalName("testClient");
+        auth.setAuthorizationGrantType("client_credentials");
+        auth.setAccessTokenMetadata(TOKEN_METADATA);
+
+        auth.setAttributes("{\"@class\":\"java.util.Collections$UnmodifiableMap\"}");
+        auth.setAccessTokenExpiresAt(Instant.now().plusSeconds(SECONDS_TO_ADD3));
+
+        auth.setAccessTokenScopes("RevokeToken");
+        auth.setAuthorizedScopes("RevokeToken");
+        auth.setAccessTokenType(OAuth2TokenType.ACCESS_TOKEN.getValue());
+        auth.setAccessTokenValue(DUMMY_TOKEN);
+
+        when(jwtTokenValidator.validateToken(DUMMY_TOKEN)).thenReturn(true);
+        when(authorizationRepository.findByAccessTokenValue("abcd")).thenReturn(Optional.of(auth));
+        List<Authorization> list = new ArrayList<>();
+        list.add(auth);
+        when(authorizationRepository.findByPrincipalNameAndAccessTokenExpiresAt(eq("testClient"), any()))
+                .thenReturn(list);
+
+        RegisteredClient registeredClient = RegisteredClient.withId("testClient").clientId("testClient")
+                .clientSecret("ChangeMe").authorizationGrantType(new AuthorizationGrantType("client_credentials"))
+                .scope("RevokeToken").build();
+        when(clientRegistrationManager.findById("testClient")).thenReturn(registeredClient);
+        webTestClient.post().uri("/revoke/revokeByAdmin").headers(http -> {
+            http.add("Authorization", "Bearer " + DUMMY_TOKEN);
+            http.add("Content-Type", "application/x-www-form-urlencoded");
+            http.add(IgniteOauth2CoreConstants.CORRELATION_ID, "abcd");
+        })
+
+                .exchange().expectStatus().isEqualTo(HttpStatus.BAD_REQUEST);
+
+    }
+
+    /**
+     * This test method tests the scenario where the revoke token request is unauthorized. It sets up the necessary
+     * parameters and then calls the revoke token method. The test asserts that the returned status is
+     * HttpStatus.UNAUTHORIZED.
      */
     @Test
     void testRevokeToken_UnAuthorized() {
-        webTestClient.post()
-            .uri("/revoke/revokeByAdmin")
-            .headers(http -> {
-                http.add("Authorization", "Bearer abcd");
-                http.add("Content-Type", "application/x-www-form-urlencoded");
-                http.add(IgniteOauth2CoreConstants.CORRELATION_ID, "abcd");
-            })
-            .bodyValue("clientId=testClient")
-            .exchange()
-            .expectStatus().isEqualTo(HttpStatus.UNAUTHORIZED);
+        webTestClient.post().uri("/revoke/revokeByAdmin").headers(http -> {
+            http.add("Authorization", "Bearer abcd");
+            http.add("Content-Type", "application/x-www-form-urlencoded");
+            http.add(IgniteOauth2CoreConstants.CORRELATION_ID, "abcd");
+        }).bodyValue("clientId=testClient").exchange().expectStatus().isEqualTo(HttpStatus.UNAUTHORIZED);
 
     }
 
     /**
      * This test method tests the scenario where the revoke token request is successful but the correlation id is
-     * missing.
-     * It sets up the necessary parameters and then calls the revoke token method.
-     * The test asserts that the returned status is HttpStatus.OK.
+     * missing. It sets up the necessary parameters and then calls the revoke token method. The test asserts that the
+     * returned status is HttpStatus.OK.
      */
     @Test
-    void testRevokeTokenCorrelationIdMissing() throws JsonProcessingException {
+    void testRevokeTokenCorrelationIdMissing() {
         Authorization auth = new Authorization();
         auth.setRegisteredClientId("testClient");
         auth.setPrincipalName("testClient");
@@ -362,27 +314,19 @@ class AuthorizationControllerTest {
         auth.setAccessTokenValue(DUMMY_TOKEN);
         when(jwtTokenValidator.validateToken(DUMMY_TOKEN)).thenReturn(true);
         when(authorizationRepository.findByAccessTokenValue("abcd")).thenReturn(Optional.of(auth));
-        List<Authorization> list = new  ArrayList<>();
+        List<Authorization> list = new ArrayList<>();
         list.add(auth);
-        when(authorizationRepository
-            .findByPrincipalNameAndAccessTokenExpiresAt(eq("testClient"), any())).thenReturn(list);
+        when(authorizationRepository.findByPrincipalNameAndAccessTokenExpiresAt(eq("testClient"), any()))
+                .thenReturn(list);
 
-        RegisteredClient registeredClient = RegisteredClient.withId("testClient")
-            .clientId("testClient")
-            .clientSecret("ChangeMe")
-            .authorizationGrantType(new AuthorizationGrantType("client_credentials"))
-            .scope("RevokeToken")
-            .build();
-        when(registeredClientRepository.findById("testClient")).thenReturn(registeredClient);
-        webTestClient.post()
-            .uri("/revoke/revokeByAdmin")
-            .headers(http -> {
-                http.add("Authorization", "Bearer " + DUMMY_TOKEN);
-                http.add("Content-Type", "application/x-www-form-urlencoded");
-            })
-            .bodyValue("clientId=testClient")
-            .exchange()
-            .expectStatus().isEqualTo(HttpStatus.OK);
+        RegisteredClient registeredClient = RegisteredClient.withId("testClient").clientId("testClient")
+                .clientSecret("ChangeMe").authorizationGrantType(new AuthorizationGrantType("client_credentials"))
+                .scope("RevokeToken").build();
+        when(clientRegistrationManager.findById("testClient")).thenReturn(registeredClient);
+        webTestClient.post().uri("/revoke/revokeByAdmin").headers(http -> {
+            http.add("Authorization", "Bearer " + DUMMY_TOKEN);
+            http.add("Content-Type", "application/x-www-form-urlencoded");
+        }).bodyValue("clientId=testClient").exchange().expectStatus().isEqualTo(HttpStatus.OK);
 
     }
 }

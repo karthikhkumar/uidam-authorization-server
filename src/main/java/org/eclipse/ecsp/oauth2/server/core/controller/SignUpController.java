@@ -24,7 +24,7 @@ import org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerC
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
 import org.eclipse.ecsp.oauth2.server.core.request.dto.UserDto;
 import org.eclipse.ecsp.oauth2.server.core.response.UserDetailsResponse;
-import org.eclipse.ecsp.oauth2.server.core.response.dto.PasswordPolicyResponseDto;
+import org.eclipse.ecsp.oauth2.server.core.service.PasswordPolicyService;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,13 +41,8 @@ import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import javax.validation.Valid;
-import java.util.ArrayList;
-import java.util.List;
 
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.ADD_REQ_PAR;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.DEFAULT_PWD_MAX_LENGTH;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.DEFAULT_PWD_MIN_LENGTH;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.DEFAULT_PWD_REGEX;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.EMAIL_SENT_SUFFIX;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.FAILED_TO_CREATE_USER_WITH_USERNAME;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.PRIVACY_AGREEMENT;
@@ -64,10 +59,6 @@ import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2C
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.ERROR_LITERAL;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.IS_SIGN_UP_ENABLED;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.MSG_LITERAL;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.PASSWORD_REGEX;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.PWD_MAX_LENGTH;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.PWD_MIN_LENGTH;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.PWD_NOTE;
 import static org.eclipse.ecsp.oauth2.server.core.utils.CommonMethodsUtils.obtainRecaptchaResponse;
 
 /**
@@ -79,8 +70,9 @@ public class SignUpController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SignUpController.class);
 
-    @Autowired
-    UserManagementClient userManagementClient;
+    private UserManagementClient userManagementClient;
+
+    private PasswordPolicyService passwordPolicyService;
 
     private TenantProperties tenantProperties;
 
@@ -90,8 +82,11 @@ public class SignUpController {
      * @param tenantConfigurationService the service to get tenant properties
      */
     @Autowired
-    public SignUpController(TenantConfigurationService tenantConfigurationService) {
+    public SignUpController(UserManagementClient userManagementClient,
+            TenantConfigurationService tenantConfigurationService, PasswordPolicyService passwordPolicyService) {
+        this.userManagementClient = userManagementClient;
         tenantProperties = tenantConfigurationService.getTenantProperties(UIDAM);
+        this.passwordPolicyService = passwordPolicyService;
     }
 
     /**
@@ -105,7 +100,7 @@ public class SignUpController {
         model.addAttribute(IS_SIGN_UP_ENABLED, tenantProperties.isSignUpEnabled());
         if (tenantProperties.isSignUpEnabled()) {
             setupCaptcha(model);
-            setupPasswordPolicy(model);
+            passwordPolicyService.setupPasswordPolicy(model, false);
         } else {
             model.addAttribute(MSG_LITERAL, SIGN_UP_NOT_ENABLED);
         }
@@ -121,21 +116,6 @@ public class SignUpController {
         model.addAttribute(MSG_LITERAL, "");
     }
 
-    private void setupPasswordPolicy(Model model) {
-        PasswordPolicyResponseDto passwordPolicy = userManagementClient.getPasswordPolicy();
-        if (passwordPolicy != null) {
-            model.addAttribute(PWD_MIN_LENGTH, passwordPolicy.getMinLength() > 0 ? passwordPolicy.getMinLength()
-                    : DEFAULT_PWD_MIN_LENGTH);
-            model.addAttribute(PWD_MAX_LENGTH, passwordPolicy.getMaxLength() > 0 ? passwordPolicy.getMaxLength()
-                    : DEFAULT_PWD_MAX_LENGTH);
-            model.addAttribute(PASSWORD_REGEX, passwordPolicy.getPasswordRegex() != null
-                    ? passwordPolicy.getPasswordRegex() : DEFAULT_PWD_REGEX);
-        } else {
-            LOGGER.debug("No password policy received from user management service. Adding defaults...");
-            passwordPolicy = addDefaultPwdPolicy(model);
-        }
-        model.addAttribute(PWD_NOTE, getPasswordPolicyMessages(passwordPolicy));
-    }
     /**
      * Initializes the user created page.
      *
@@ -223,50 +203,6 @@ public class SignUpController {
         }
     }
 
-
-    /**
-     * Constructs a list of message strings describing the password policy.
-     *
-     * @return a list of strings with the password policy details
-     */
-    public List<String> getPasswordPolicyMessages(PasswordPolicyResponseDto passwordPolicyResponseDto) {
-        LOGGER.info("Creating Password Policy message for UI");
-        List<String> messages = new ArrayList<>();
-        if (passwordPolicyResponseDto != null) {
-            messages.add("Password must not contain email/username");
-            if (passwordPolicyResponseDto.getMinLength() > 0) {
-                messages.add("Password should contain atleast " + passwordPolicyResponseDto.getMinLength() 
-                        + " characters minimum");
-            }
-            if (StringUtils.hasLength(passwordPolicyResponseDto.getPasswordRegex())) {
-                messages.add("Password should contain atleast one Uppercase");
-            }
-            if (StringUtils.hasLength(passwordPolicyResponseDto.getPasswordRegex())) {
-                messages.add("Password should contain atleast one Lowercase");
-            }
-            if (StringUtils.hasLength(passwordPolicyResponseDto.getPasswordRegex())) {
-                messages.add("Password should contain atleast one Number");
-            }
-            if (StringUtils.hasLength(passwordPolicyResponseDto.getPasswordRegex())) {
-                messages.add("Password should contain atleast one special character and should not contain space");
-            }
-        }
-        return messages;
-    }
-
-
-    private PasswordPolicyResponseDto addDefaultPwdPolicy(Model model) {
-        LOGGER.info("Creating Default Password Policy and message for UI");
-        PasswordPolicyResponseDto passwordPolicyResponseDto = new PasswordPolicyResponseDto();
-        passwordPolicyResponseDto.setMinLength(DEFAULT_PWD_MIN_LENGTH);
-        passwordPolicyResponseDto.setMaxLength(DEFAULT_PWD_MAX_LENGTH);
-        passwordPolicyResponseDto.setPasswordRegex(DEFAULT_PWD_REGEX);
-        model.addAttribute(PWD_MIN_LENGTH, DEFAULT_PWD_MIN_LENGTH);
-        model.addAttribute(PWD_MAX_LENGTH, DEFAULT_PWD_MAX_LENGTH);
-        model.addAttribute(PASSWORD_REGEX, DEFAULT_PWD_REGEX);
-        return passwordPolicyResponseDto;
-    }
-
     private boolean checkForReqParameters(UserDto userDto, String recaptchaResp) {
         return StringUtils.hasText(userDto.getFirstName())
                 && StringUtils.hasText(userDto.getEmail())
@@ -274,4 +210,3 @@ public class SignUpController {
                 && StringUtils.hasText(recaptchaResp);
     }
 }
-

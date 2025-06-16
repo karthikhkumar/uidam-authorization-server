@@ -31,6 +31,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The PasswordUtils class is a utility class that provides methods for password encryption.
@@ -40,6 +41,7 @@ public class PasswordUtils {
     private static final Logger LOGGER = LoggerFactory.getLogger(PasswordUtils.class);
 
     private static final List<String> SUPPORTED_ALGORITHMS = Arrays.asList("SHA-256", "SHA-384", "SHA-512");
+    public static final Map<String, Integer> UIDAM_BCRYPT_STRENGTH_MAP = Map.of("low", 4, "medium", 7, "high", 10);
 
     protected PasswordUtils() {
         // Prevent instantiation
