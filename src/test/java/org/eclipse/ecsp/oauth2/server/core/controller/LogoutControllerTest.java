@@ -120,7 +120,7 @@ class LogoutControllerTest {
         // Arrange
         when(securityContext.getAuthentication()).thenReturn(authentication);
         doNothing().when(logoutHandler).onLogoutSuccess(any(HttpServletRequest.class), any(HttpServletResponse.class),
-                eq(authentication), eq(VALID_ID_TOKEN_HINT), eq(VALID_CLIENT_ID), eq(""), eq(""));
+                eq(authentication), eq(VALID_ID_TOKEN_HINT), eq(VALID_CLIENT_ID), isNull(), eq(""));
 
         // Act
         mockMvc.perform(
@@ -130,7 +130,7 @@ class LogoutControllerTest {
 
         // Assert
         verify(logoutHandler, times(1)).onLogoutSuccess(any(HttpServletRequest.class), any(HttpServletResponse.class),
-                eq(authentication), eq(VALID_ID_TOKEN_HINT), eq(VALID_CLIENT_ID), eq(""), eq(""));
+                eq(authentication), eq(VALID_ID_TOKEN_HINT), eq(VALID_CLIENT_ID), isNull(), eq(""));
     }
 
     @Test
@@ -383,5 +383,39 @@ class LogoutControllerTest {
         // This is implicitly tested through all other tests, but we can verify construction
         LogoutController testController = new LogoutController(logoutHandler);
         assertNotNull(testController);
+    }
+
+    @Test
+    void shouldAllowRelativePathRedirectUri() throws Exception {
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        String relativeUri = "/logout-success";
+        doNothing().when(logoutHandler).onLogoutSuccess(any(HttpServletRequest.class), any(HttpServletResponse.class),
+                eq(authentication), eq(VALID_ID_TOKEN_HINT), eq(VALID_CLIENT_ID), eq(relativeUri), isNull());
+
+        mockMvc.perform(post("/oauth2/logout")
+                .param("id_token_hint", VALID_ID_TOKEN_HINT)
+                .param("client_id", VALID_CLIENT_ID)
+                .param("post_logout_redirect_uri", relativeUri))
+                .andExpect(status().isOk());
+
+        verify(logoutHandler, times(1)).onLogoutSuccess(any(HttpServletRequest.class), any(HttpServletResponse.class),
+                eq(authentication), eq(VALID_ID_TOKEN_HINT), eq(VALID_CLIENT_ID), eq(relativeUri), isNull());
+    }
+
+    @Test
+    void shouldBlockNonHttpsAndNonRelativeRedirectUri() throws Exception {
+        when(securityContext.getAuthentication()).thenReturn(authentication);
+        String badUri = "http://malicious.com";
+        doNothing().when(logoutHandler).onLogoutSuccess(any(HttpServletRequest.class), any(HttpServletResponse.class),
+                eq(authentication), eq(VALID_ID_TOKEN_HINT), eq(VALID_CLIENT_ID), isNull(), isNull());
+
+        mockMvc.perform(post("/oauth2/logout")
+                .param("id_token_hint", VALID_ID_TOKEN_HINT)
+                .param("client_id", VALID_CLIENT_ID)
+                .param("post_logout_redirect_uri", badUri))
+                .andExpect(status().isOk());
+
+        verify(logoutHandler, times(1)).onLogoutSuccess(any(HttpServletRequest.class), any(HttpServletResponse.class),
+                eq(authentication), eq(VALID_ID_TOKEN_HINT), eq(VALID_CLIENT_ID), isNull(), isNull());
     }
 }
