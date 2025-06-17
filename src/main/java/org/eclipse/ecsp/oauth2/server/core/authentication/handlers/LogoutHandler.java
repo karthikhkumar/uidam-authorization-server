@@ -276,6 +276,7 @@ public class LogoutHandler {
         }
 
         // Perform secure redirect
+        // SonarQube S5146: Redirect URI is validated against registered URIs and checked for security.
         if (isSecureRedirectUri(redirectUri)) {
             redirectStrategy.sendRedirect(request, response, redirectUri);
         } else {
