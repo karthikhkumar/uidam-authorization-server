@@ -21,7 +21,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.eclipse.ecsp</groupId>
     <artifactId>uidam-authorization-server</artifactId>
-    <version>1.0.1</version>
+    <version>1.2.0</version>
     <packaging>jar</packaging>
     <name>uidam-authorization-server</name>
     <description>Project for Authorization Server</description>
@@ -45,6 +45,11 @@
             <id>RajendranHarman</id>
             <name>Rajendran P</name>
             <email>Rajendran.P@harman.com</email>
+        </developer>
+        <developer>
+            <id>puvvada88</id>
+            <name>Puvvada Venkatakumar</name>
+            <email>Venkatakumar.Puvvada@harman.com</email>
         </developer>
     </developers>
 

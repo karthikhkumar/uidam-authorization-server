@@ -192,9 +192,8 @@ public class LogoutHandler {
             if (registeredClient == null) {
                 LOGGER.warn("Client not found: {}", clientId);
                 throwError(OAuth2ErrorCodes.INVALID_CLIENT, OAuth2ParameterNames.CLIENT_ID);
-            }
-            // Validate URI against registered post logout redirect URIs
-            if (registeredClient.getPostLogoutRedirectUris().contains(postLogoutRedirectUri)) {
+            } else if (registeredClient.getPostLogoutRedirectUris().contains(postLogoutRedirectUri)) {
+                // Validate URI against registered post logout redirect URIs
                 LOGGER.debug("Post logout redirect URI validated successfully: {}", postLogoutRedirectUri);
                 return postLogoutRedirectUri;
             } else if (!registeredClient.getPostLogoutRedirectUris().isEmpty()) {
@@ -209,7 +208,7 @@ public class LogoutHandler {
             LOGGER.error("Error validating post logout redirect URI", e);
             return null;
         }
-        return postLogoutRedirectUri;
+        return null;
     }
 
     /**
