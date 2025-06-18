@@ -62,6 +62,9 @@ public class LogoutController {
     /**
      * Handles OpenID Connect RP-Initiated Logout requests via POST method.
      *
+     * SonarQube S5146: Redirect URI is validated and only allowed values are used for redirect.
+     * Suppress this warning as the redirect is not open to forging attacks.
+     *
      * @param idTokenHint ID token hint (access token in UIDAM's case)
      * @param logoutHint Optional logout hint (reserved for future use)
      * @param clientId client ID that initiated the logout
@@ -71,6 +74,7 @@ public class LogoutController {
      * @param response HTTP servlet response
      * @throws IOException if an I/O error occurs during logout processing
      */
+    @SuppressWarnings("java:S5146")
     @PostMapping
     public void logout(
             @RequestParam(value = "id_token_hint", required = true) String idTokenHint,
