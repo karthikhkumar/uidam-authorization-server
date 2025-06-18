@@ -237,6 +237,8 @@ public class LogoutHandler {
 
     /**
      * Performs the logout redirect based on validated parameters.
+     * SonarQube S5146: Redirect URI is validated against registered URIs and checked for security.
+     * Suppress this warning as the redirect is not open to forging attacks.
      *
      * @param request HTTP servlet request
      * @param response HTTP servlet response
@@ -245,6 +247,7 @@ public class LogoutHandler {
      * @param error OAuth2Error if an error occurred, null for success
      * @throws IOException if an I/O error occurs during redirect
      */
+    @SuppressWarnings("java:S5146")
     private void performLogoutRedirect(HttpServletRequest request, HttpServletResponse response,
             String postLogoutRedirectUri, String state, OAuth2Error error) throws IOException {
         String redirectUri;
