@@ -61,7 +61,6 @@ public class LogoutController {
  
     /**
      * Handles OpenID Connect RP-Initiated Logout requests via POST method.
-     *
      * SonarQube S5146: Redirect URI is validated and only allowed values are used for redirect.
      * Suppress this warning as the redirect is not open to forging attacks.
      *
