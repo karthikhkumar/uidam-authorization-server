@@ -168,7 +168,20 @@ https://localhost:9443/oauth2/authorize?response_type=code&client_id=<CLIENT_ID>
 
 Note: Replace the placeholders with actual values. The above shared curls are for localhost, please replace "localhost" with the actual server URL.
 
-
+### JKS Generation Steps
+* Make sure you have Java installed in your system
+* Open CMD
+* Go to java JAVA_INSTALLATION_FOLDER\bin
+* Use the following command:
+   `keytool -genkey -alias <alias_name> -keyalg RSA -keypass <key-password> -storepass <store-password> -keystore <full path where jks to be stored along with jks file name>.jks -validity <validity period in days> -keysize  4096`
+* Add required details
+* Jks file would be created
+* Encoded jks has to be used in uidam chart, so use the following command to generate the same
+   To encode jks -> `cat <jks-file-name>.jks | base64 -w 0`
+* Update encrypted value in values.yaml (`jks_file`) of uidam-authorization-server charts.
+  ex: Source of values.yaml - jks_file
+* Along with jks, update the chart with jks alias (`values.yaml -> keyAlias`) and jks password (`values.yaml -> keystorePassword`).
+  
 #### Glossary
 * CLIENT_SCOPES - Space separated scopes for the registered client like openid SelfManage
 * CLIENT_ID - Registered Client ID
