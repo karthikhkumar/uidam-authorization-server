@@ -181,6 +181,19 @@ Note: Replace the placeholders with actual values. The above shared curls are fo
 * Update encrypted value in values.yaml (`jks_file`) of uidam-authorization-server charts.
   ex: Source of values.yaml - jks_file
 * Along with jks, update the chart with jks alias (`values.yaml -> keyAlias`) and jks password (`values.yaml -> keystorePassword`).
+
+#### Generate Public Key
+* Create the public.cert using
+     `keytool -export -alias <alias_name> -keystore <jks file name>.jks -rfc -file <public-key-cert-file-name>.cert`
+* Use this command to get certificate details:
+     `keytool -list -rfc -keystore <jks file name>.jks -alias <alias_name> -storepass <store-password>`
+* Create pem file from cert using the following command
+     `openssl x509 -in< public-key-cert-file-name>.cert -out <public-key-pem-file-name>.pem`
+* To get public key from pem, use below:
+     `openssl x509 -pubkey -noout -in public-key-pem-file-name>.pem`
+* This public key needs to be updated in UIDAM Authorization server charts values.yaml (`uidam_pub`)
+* This pem file would need to be updated in api gateway charts and hivemq charts for token validation.
+
   
 #### Glossary
 * CLIENT_SCOPES - Space separated scopes for the registered client like openid SelfManage
