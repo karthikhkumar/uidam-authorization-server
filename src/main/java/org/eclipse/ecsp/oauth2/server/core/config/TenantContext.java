@@ -3,6 +3,8 @@ package org.eclipse.ecsp.oauth2.server.core.config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.ECSP;
+
 /**
  * TenantContext is a utility class that provides a way to manage the current tenant in a thread-local context. It
  * allows setting and getting the current tenant ID, which can be useful in multi-tenant applications.
@@ -17,7 +19,7 @@ public class TenantContext {
     }
 
     private static final ThreadLocal<String> CURRENT_TENANT = new ThreadLocal<>();
-    private static final String DEFAULT_TENANT_ID = "default";
+    private static final String DEFAULT_TENANT_ID = ECSP;
 
     /**
      * Get the current tenant ID from thread local context.

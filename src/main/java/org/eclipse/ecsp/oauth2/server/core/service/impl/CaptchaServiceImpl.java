@@ -76,13 +76,6 @@ public class CaptchaServiceImpl implements CaptchaService {
         String currentTenant = TenantContext.getCurrentTenant();
         LOGGER.debug("Getting CAPTCHA properties for tenant: {}", currentTenant);
         TenantProperties properties = tenantConfigurationService.getTenantProperties();
-        
-        // If no properties found for current tenant, fallback to default tenant
-        if (properties == null) {
-            LOGGER.debug("No properties found for tenant: {}, falling back to default tenant", currentTenant);
-            properties = tenantConfigurationService.getDefaultTenantProperties();
-        }
-        
         return properties;
     }
 

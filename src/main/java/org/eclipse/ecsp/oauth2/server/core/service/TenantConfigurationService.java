@@ -44,8 +44,14 @@ public class TenantConfigurationService {
      */
     public TenantConfigurationService(MultiTenantProperties multiTenantProperties) {
         this.multiTenantProperties = multiTenantProperties;
-        LOGGER.info("TenantConfigurationService initialized with {} tenant(s)", 
-                   multiTenantProperties.getTenants().size());
+        
+        // Add null safety for tenant properties
+        if (multiTenantProperties.getTenants() != null) {
+            LOGGER.info("TenantConfigurationService initialized with {} tenant(s)", 
+                       multiTenantProperties.getTenants().size());
+        } else {
+            LOGGER.warn("TenantConfigurationService initialized with null tenant properties - check property loading");
+        }
     }
 
     /**
@@ -56,6 +62,12 @@ public class TenantConfigurationService {
      * @return the tenant properties for the given tenant ID, or null if not found
      */
     public TenantProperties getTenantProperties(String tenantId) {
+        // Add null safety check
+        if (multiTenantProperties.getTenants() == null) {
+            LOGGER.error("Multi-tenant properties not loaded - getTenants() returns null for tenant: {}", tenantId);
+            return null;
+        }
+        
         TenantProperties properties = multiTenantProperties.getTenants().get(tenantId);
         if (properties == null) {
             LOGGER.warn("No properties found for tenant: {}", tenantId);
@@ -82,6 +94,11 @@ public class TenantConfigurationService {
      * @return true if the tenant exists, false otherwise
      */
     public boolean tenantExists(String tenantId) {
+        // Add null safety check
+        if (multiTenantProperties.getTenants() == null) {
+            LOGGER.error("Multi-tenant properties not loaded - cannot check if tenant exists: {}", tenantId);
+            return false;
+        }
         return multiTenantProperties.getTenants().containsKey(tenantId);
     }
 

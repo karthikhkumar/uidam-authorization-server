@@ -49,7 +49,7 @@ import java.util.Collections;
 import java.util.UUID;
 
 
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.ESCP;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.ECSP;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_KEYSTORE_ALIAS;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_KEYSTORE_FILENAME;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_KEYSTORE_PASS;
@@ -74,7 +74,7 @@ public class KeyStoreConfigByJavaKeyStore {
      */
     @Autowired
     public KeyStoreConfigByJavaKeyStore(TenantConfigurationService tenantConfigurationService) {
-        tenantProperties = tenantConfigurationService.getTenantProperties(ESCP);
+        tenantProperties = tenantConfigurationService.getTenantProperties(ECSP);
     }
 
     /**

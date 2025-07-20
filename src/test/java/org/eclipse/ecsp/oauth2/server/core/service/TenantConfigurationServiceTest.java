@@ -33,7 +33,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.ESCP;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.ECSP;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_CONTACT_NAME;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_EMAIL;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_EXTERNAL_IDP_CLIENT_ID;
@@ -75,11 +75,11 @@ class TenantConfigurationServiceTest {
         
         // Setup the mock to return the tenant properties
         Map<String, TenantProperties> tenants = new HashMap<>();
-        tenants.put(ESCP, expectedTenantProperties);
+        tenants.put(ECSP, expectedTenantProperties);
         when(multiTenantProperties.getTenants()).thenReturn(tenants);
         
         // Execute the method under test
-        TenantProperties tenantProperties = tenantConfigurationService.getTenantProperties(ESCP);
+        TenantProperties tenantProperties = tenantConfigurationService.getTenantProperties(ECSP);
         
         // Verify the results
         assertEquals("uidam", tenantProperties.getTenantId());

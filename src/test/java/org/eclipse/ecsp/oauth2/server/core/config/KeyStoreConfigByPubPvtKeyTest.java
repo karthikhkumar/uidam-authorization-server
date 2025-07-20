@@ -33,7 +33,7 @@ import java.security.interfaces.RSAPublicKey;
 import java.util.HashMap;
 
 
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.ESCP;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.ECSP;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_JWT_KEY_ID;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_JWT_PRIVATE_KEY;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_JWT_PUBLIC_KEY;
@@ -70,13 +70,13 @@ class KeyStoreConfigByPubPvtKeyTest {
     @Test
     void testConstructor_ShouldInitializeTenantProperties() {
         // Set up the specific mocks needed for this test
-        when(tenantConfigurationService.getTenantProperties(ESCP)).thenReturn(tenantProperties);
+        when(tenantConfigurationService.getTenantProperties(ECSP)).thenReturn(tenantProperties);
 
         // Create the service and verify behavior
         KeyStoreConfigByPubPvtKey testKeyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
 
         // Verify that constructor properly initializes tenant properties
-        verify(tenantConfigurationService).getTenantProperties(ESCP);
+        verify(tenantConfigurationService).getTenantProperties(ECSP);
         assertNotNull(ReflectionTestUtils.getField(testKeyStoreConfig, "tenantProperties"));
     }
 
@@ -88,7 +88,7 @@ class KeyStoreConfigByPubPvtKeyTest {
         certProperties.put(TENANT_JWT_PRIVATE_KEY, TEST_PRIVATE_KEY_FILE);
         certProperties.put(TENANT_JWT_KEY_ID, TEST_KEY_ID);
 
-        when(tenantConfigurationService.getTenantProperties(ESCP)).thenReturn(tenantProperties);
+        when(tenantConfigurationService.getTenantProperties(ECSP)).thenReturn(tenantProperties);
         when(tenantProperties.getCert()).thenReturn(certProperties);
 
         KeyStoreConfigByPubPvtKey testKeyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
@@ -123,7 +123,7 @@ class KeyStoreConfigByPubPvtKeyTest {
         certProperties.put(TENANT_JWT_PRIVATE_KEY, TEST_PRIVATE_KEY_FILE);
         certProperties.put(TENANT_JWT_KEY_ID, TEST_KEY_ID);
 
-        when(tenantConfigurationService.getTenantProperties(ESCP)).thenReturn(tenantProperties);
+        when(tenantConfigurationService.getTenantProperties(ECSP)).thenReturn(tenantProperties);
         when(tenantProperties.getCert()).thenReturn(certProperties);
         KeyStoreConfigByPubPvtKey testKeyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
 
@@ -139,7 +139,7 @@ class KeyStoreConfigByPubPvtKeyTest {
         certProperties.put(TENANT_JWT_PRIVATE_KEY, "non-existent-private.key");
         certProperties.put(TENANT_JWT_KEY_ID, TEST_KEY_ID);
 
-        when(tenantConfigurationService.getTenantProperties(ESCP)).thenReturn(tenantProperties);
+        when(tenantConfigurationService.getTenantProperties(ECSP)).thenReturn(tenantProperties);
         when(tenantProperties.getCert()).thenReturn(certProperties);
         KeyStoreConfigByPubPvtKey testKeyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
 
@@ -155,7 +155,7 @@ class KeyStoreConfigByPubPvtKeyTest {
         certProperties.put(TENANT_JWT_PRIVATE_KEY, TEST_PRIVATE_KEY_FILE);
         certProperties.put(TENANT_JWT_KEY_ID, customKeyId);
 
-        when(tenantConfigurationService.getTenantProperties(ESCP)).thenReturn(tenantProperties);
+        when(tenantConfigurationService.getTenantProperties(ECSP)).thenReturn(tenantProperties);
         when(tenantProperties.getCert()).thenReturn(certProperties);
 
         KeyStoreConfigByPubPvtKey testKeyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
@@ -172,7 +172,7 @@ class KeyStoreConfigByPubPvtKeyTest {
     @Test
     void testGenerateRsaKey_WithNullTenantProperties_ShouldThrowException() {
         // Test with null tenant properties - constructor succeeds but generateRsaKey fails
-        when(tenantConfigurationService.getTenantProperties(ESCP)).thenReturn(null);
+        when(tenantConfigurationService.getTenantProperties(ECSP)).thenReturn(null);
 
         KeyStoreConfigByPubPvtKey keyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
 
@@ -182,7 +182,7 @@ class KeyStoreConfigByPubPvtKeyTest {
 
     @Test
     void testGenerateRsaKey_WithNullCertProperties_ShouldThrowException() {
-        when(tenantConfigurationService.getTenantProperties(ESCP)).thenReturn(tenantProperties);
+        when(tenantConfigurationService.getTenantProperties(ECSP)).thenReturn(tenantProperties);
         when(tenantProperties.getCert()).thenReturn(null);
 
         KeyStoreConfigByPubPvtKey testKeyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
@@ -194,7 +194,7 @@ class KeyStoreConfigByPubPvtKeyTest {
     @Test
     void testGetFile_WithNonExistentFile_ShouldThrowKeyGenerationException() {
         // Create a minimal setup for testing the private method
-        when(tenantConfigurationService.getTenantProperties(ESCP)).thenReturn(tenantProperties);
+        when(tenantConfigurationService.getTenantProperties(ECSP)).thenReturn(tenantProperties);
         KeyStoreConfigByPubPvtKey testKeyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
 
         // Use reflection to test the private getFile method
@@ -206,7 +206,7 @@ class KeyStoreConfigByPubPvtKeyTest {
     @Test
     void testGetFile_WithValidFile_ShouldReturnFileContent() {
         // Create a minimal setup for testing the private method
-        when(tenantConfigurationService.getTenantProperties(ESCP)).thenReturn(tenantProperties);
+        when(tenantConfigurationService.getTenantProperties(ECSP)).thenReturn(tenantProperties);
         KeyStoreConfigByPubPvtKey testKeyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
 
         // Test with a file that exists in test resources
@@ -228,7 +228,7 @@ class KeyStoreConfigByPubPvtKeyTest {
         certProperties.put(TENANT_JWT_PRIVATE_KEY, TEST_PRIVATE_KEY_FILE);
         certProperties.put(TENANT_JWT_KEY_ID, TEST_KEY_ID);
 
-        when(tenantConfigurationService.getTenantProperties(ESCP)).thenReturn(tenantProperties);
+        when(tenantConfigurationService.getTenantProperties(ECSP)).thenReturn(tenantProperties);
         when(tenantProperties.getCert()).thenReturn(certProperties);
 
         KeyStoreConfigByPubPvtKey testKeyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
@@ -253,7 +253,7 @@ class KeyStoreConfigByPubPvtKeyTest {
         certProperties.put(TENANT_JWT_PRIVATE_KEY, TEST_PRIVATE_KEY_FILE);
         certProperties.put(TENANT_JWT_KEY_ID, TEST_KEY_ID);
 
-        when(tenantConfigurationService.getTenantProperties(ESCP)).thenReturn(tenantProperties);
+        when(tenantConfigurationService.getTenantProperties(ECSP)).thenReturn(tenantProperties);
         when(tenantProperties.getCert()).thenReturn(certProperties);
 
         KeyStoreConfigByPubPvtKey testKeyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);

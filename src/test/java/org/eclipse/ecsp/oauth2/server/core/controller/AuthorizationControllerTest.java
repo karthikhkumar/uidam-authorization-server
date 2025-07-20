@@ -55,7 +55,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.ESCP;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.ECSP;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_KEYSTORE_ALIAS;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_KEYSTORE_FILENAME;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_KEYSTORE_PASS;
@@ -380,7 +380,7 @@ class AuthorizationControllerTest {
             mockTenantProperties.setKeyStore(keystoreProperties);
             TenantConfigurationService mockService = Mockito.mock(TenantConfigurationService.class);
             // Mock the TenantConfigurationService to return our mock TenantProperties
-            when(mockService.getTenantProperties(ESCP)).thenReturn(mockTenantProperties);
+            when(mockService.getTenantProperties(ECSP)).thenReturn(mockTenantProperties);
 
             return mockService;
         }

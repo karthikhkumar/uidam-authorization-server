@@ -123,9 +123,9 @@ class DatabaseSecurityContextRepositoryTest {
         when(accountProperties.getAccountName()).thenReturn(ACCOUNT_NAME);
         when(tenantProperties.getAccount()).thenReturn(accountProperties);
         
-        // Mock multiTenantProperties.getTenants() to return a map with the default tenant
+        // Mock multiTenantProperties.getTenants() to return a map with the ecsp tenant
         Map<String, TenantProperties> tenantsMap = new HashMap<>();
-        tenantsMap.put("default", tenantProperties);
+        tenantsMap.put("ecsp", tenantProperties);
         when(multiTenantProperties.getTenants()).thenReturn(tenantsMap);
     }
 

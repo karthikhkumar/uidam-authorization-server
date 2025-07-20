@@ -42,8 +42,8 @@ import java.util.Base64;
 
 
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.BEGIN_PUBLIC_KEY;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.ECSP;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.END_PUBLIC_KEY;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.ESCP;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_JWT_KEY_ID;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_JWT_PRIVATE_KEY;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_JWT_PUBLIC_KEY;
@@ -66,7 +66,7 @@ public class KeyStoreConfigByPubPvtKey {
      */
     @Autowired
     public KeyStoreConfigByPubPvtKey(TenantConfigurationService tenantConfigurationService) {
-        tenantProperties = tenantConfigurationService.getTenantProperties(ESCP);
+        tenantProperties = tenantConfigurationService.getTenantProperties(ECSP);
     }
 
     /**

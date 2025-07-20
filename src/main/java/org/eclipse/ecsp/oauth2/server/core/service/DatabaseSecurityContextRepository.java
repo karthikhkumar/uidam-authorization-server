@@ -56,7 +56,6 @@ import java.util.Optional;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.ESCP;
 import static org.eclipse.ecsp.oauth2.server.core.utils.ObjectMapperUtils.parseMap;
 import static org.eclipse.ecsp.oauth2.server.core.utils.ObjectMapperUtils.writeMap;
 

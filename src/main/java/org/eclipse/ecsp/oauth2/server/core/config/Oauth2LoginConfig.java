@@ -40,7 +40,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.ESCP;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.ECSP;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.COMMA_DELIMITER;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.IDP_REDIRECT_URI;
 
@@ -71,11 +71,11 @@ public class Oauth2LoginConfig {
      */
     public Oauth2LoginConfig(TenantConfigurationService tenantConfigurationService) {
         try {
-            tenantProperties = tenantConfigurationService.getTenantProperties(ESCP);
-            LOGGER.info("Initialized Oauth2LoginConfig with tenant properties for: {}", ESCP);
+            tenantProperties = tenantConfigurationService.getTenantProperties(ECSP);
+            LOGGER.info("Initialized Oauth2LoginConfig with tenant properties for: {}", ECSP);
         } catch (Exception e) {
             LOGGER.warn("Could not load tenant properties for {}, external IDP will not be available: {}", 
-                       ESCP, e.getMessage());
+                       ECSP, e.getMessage());
             tenantProperties = null;
         }
     }
