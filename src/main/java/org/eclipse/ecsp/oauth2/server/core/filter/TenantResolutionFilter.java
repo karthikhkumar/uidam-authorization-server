@@ -28,6 +28,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.eclipse.ecsp.oauth2.server.core.config.TenantContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -50,10 +51,11 @@ public class TenantResolutionFilter implements Filter {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TenantResolutionFilter.class);
 
-    private static final String TENANT_HEADER = "X-Tenant-ID";
+    private static final String TENANT_HEADER = "tenantId";
     private static final String TENANT_PARAM = "tenant";
     private static final int MIN_SUBDOMAIN_PARTS = 3;
     private static final int TENANT_PATH_INDEX = 2;
+    private static final String MDC_TENANT_KEY = "tenantId";
 
     @Override
     public void init(FilterConfig filterConfig) throws ServletException {
@@ -74,7 +76,7 @@ public class TenantResolutionFilter implements Filter {
                 LOGGER.debug("Tenant resolved from header: {}", tenantId);
             } else {
                 // Strategy 2: Extract from subdomain
-                tenantId = extractTenantFromSubdomain(httpRequest);
+                //tenantId = extractTenantFromSubdomain(httpRequest);
                 if (StringUtils.hasText(tenantId)) {
                     LOGGER.debug("Tenant resolved from subdomain: {}", tenantId);
                 } else {
@@ -95,6 +97,7 @@ public class TenantResolutionFilter implements Filter {
             // Set tenant context if resolved
             if (StringUtils.hasText(tenantId)) {
                 TenantContext.setCurrentTenant(tenantId);
+                MDC.remove(MDC_TENANT_KEY);
                 LOGGER.info("Tenant context set to: {} for request: {}", tenantId, httpRequest.getRequestURI());
             } else {
                 LOGGER.warn("No tenant could be resolved for request: {}", httpRequest.getRequestURI());
