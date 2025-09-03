@@ -2,7 +2,7 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:th="https://www.thymeleaf.org">
 <head>
     <title>Log In</title>
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{tenantStylesheetPath != null ? ${tenantStylesheetPath} : '/css/style.css'}">
 	<meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script>
@@ -26,7 +26,7 @@
 <body>
 <div class="login-page">
     <div th:align="center">
-        <img th:src="@{/images/logo.svg}" alt="Harman" title="Harman" class="logo"/>
+        <img th:src="@{tenantLogoPath != null ? ${tenantLogoPath} : '/images/' + ${issuer} + '-logo.svg'}" alt="Logo" title="Logo" class="logo"/>
     </div>
     <div>
         <div class="error" style="text-align: center; padding-bottom: 20px; color: red; font-weight: 600; font-size: 14px;" th:if="${param.error}">
@@ -68,16 +68,22 @@
                     </button>
                 </div>
                 <div class="link-forgot-password">
-                    <a href="recovery">Forgot Password?</a>
+                    <a th:href="@{|/${issuer}/recovery|}">Forgot Password?</a>
                 </div>
                 <div class="container-sign-up" th:if="${isSignUpEnabled}">
                     <div class="sign-up-text-helper">
                         Don't have an account yet?
                     </div>
                     <div class="sign-up-link">
-                        <a id="sign-up" href="sign-up">Sign Up Here</a>
+                        <a id="sign-up" th:href="@{|/${issuer}/sign-up|}">Sign Up Here</a>
                     </div>
                 </div>
+                <input type="hidden" name="client_id" th:value="${client_id}" />
+                <input type="hidden" name="scope" th:value="${scope}" />
+                <input type="hidden" name="redirect_uri" th:value="${redirect_uri}" />
+                <input type="hidden" name="response_type" th:value="${response_type}" />
+                <input type="hidden" name="state" th:value="${state}" />
+                <input type="hidden" name="issuer" th:value="${issuer}" />
             </form>
         </div>
 
@@ -88,7 +94,7 @@
 				<div style="display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;">
 					<div th:each="externalIdp: ${externalIdpList}">
 						<a class="btn btn-light"
-						   th:href="@{${externalIdpAuthorizationUri} + ${externalIdp.getRegistrationId()}}"
+						   th:href="@{'/' + ${issuer} + ${externalIdpAuthorizationUri} + ${issuer} + '-' + ${externalIdp.getRegistrationId()}}"
 						   role="link"
 						   style="display: flex; align-items: center; margin: 10px;">
 							<img th:src="@{'/images/' + ${#strings.toLowerCase(externalIdp.getClientName())} + '.png'}" width="20"
@@ -104,7 +110,7 @@
             <h3 th:align="center">Redirecting...</h3>
             <tr th:each="externalIdp: ${externalIdpList}">
                 <meta http-equiv="refresh"
-                      th:content="'0; url=' + ${externalIdpAuthorizationUri} + ${externalIdp.getRegistrationId()}">
+                      th:content="'0; url=/' + ${issuer} + ${externalIdpAuthorizationUri} + ${issuer} + '-' + ${externalIdp.getRegistrationId()}">
             </tr>
 
         </div>

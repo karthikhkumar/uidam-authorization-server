@@ -482,6 +482,7 @@ class UserManagementClientTest {
         Mockito.when(webClientMock.method(HttpMethod.GET)).thenReturn(requestBodyUriSpecMock);
         Mockito.when(requestBodyUriSpecMock.uri(anyString())).thenReturn(requestBodySpecMock);
         Mockito.when(requestBodySpecMock.accept(MediaType.APPLICATION_JSON)).thenReturn(requestBodySpecMock);
+        Mockito.when(requestBodySpecMock.header(anyString(), anyString())).thenReturn(requestBodySpecMock);
         Mockito.when(requestBodySpecMock.retrieve()).thenReturn(responseSpecMock);
         Mockito.when(responseSpecMock.bodyToMono(PasswordPolicyResponseDto.class))
                 .thenReturn(Mono.just(expectedResponse));

@@ -22,6 +22,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.FilterConfig;
 import jakarta.servlet.ServletException;
 import org.eclipse.ecsp.oauth2.server.core.config.TenantContext;
+import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -29,18 +30,22 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
-
 import java.io.IOException;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 
 /**
@@ -50,6 +55,8 @@ import static org.mockito.Mockito.verify;
 @ExtendWith(MockitoExtension.class)
 class TenantResolutionFilterTest {
 
+    private static final String TENANT_NOT_FOUND_ERROR = "TENANT_NOT_FOUND_IN_REQUEST";
+
     private TenantResolutionFilter tenantResolutionFilter;
 
     @Mock
@@ -58,12 +65,15 @@ class TenantResolutionFilterTest {
     @Mock
     private FilterConfig filterConfig;
 
+    @Mock
+    private TenantConfigurationService tenantConfigurationService;
+
     private MockHttpServletRequest request;
     private MockHttpServletResponse response;
 
     @BeforeEach
     void setUp() {
-        tenantResolutionFilter = new TenantResolutionFilter();
+        tenantResolutionFilter = new TenantResolutionFilter(tenantConfigurationService);
         request = new MockHttpServletRequest();
         response = new MockHttpServletResponse();
     }
@@ -74,23 +84,39 @@ class TenantResolutionFilterTest {
         TenantContext.clear();
     }
 
+    /**
+     * Helper method to verify error response for tenant resolution failures.
+     */
+    private void assertTenantNotFoundErrorResponse() {
+        assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatus());
+        assertEquals(MediaType.APPLICATION_JSON_VALUE, response.getContentType());
+        
+        try {
+            String responseContent = response.getContentAsString();
+            assertTrue(responseContent.contains(TENANT_NOT_FOUND_ERROR));
+        } catch (Exception e) {
+            throw new AssertionError("Failed to get response content", e);
+        }
+    }
+
     @Test
-    void testInit() {
+    void initShouldCompleteWithoutException() {
         // Test that init method completes without exception
         assertDoesNotThrow(() -> tenantResolutionFilter.init(filterConfig));
     }
 
     @Test
-    void testDestroy() {
+    void destroyShouldCompleteWithoutException() {
         // Test that destroy method completes without exception
         assertDoesNotThrow(() -> tenantResolutionFilter.destroy());
     }
 
     @Test
-    void testTenantResolutionFromHeader() throws IOException, ServletException {
+    void tenantResolutionFromHeaderShouldSetTenantContext() throws IOException, ServletException {
         // Given
         request.addHeader("tenantId", "test-tenant");
         request.setRequestURI("/oauth2/authorize");
+        when(tenantConfigurationService.tenantExists("test-tenant")).thenReturn(true);
 
         try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
             // When
@@ -103,27 +129,11 @@ class TenantResolutionFilterTest {
         }
     }
 
-    //@Test
-    void testTenantResolutionFromSubdomain() throws IOException, ServletException {
-        // Given
-        request.setServerName("ecsp.example.com");
-        request.setRequestURI("/oauth2/authorize");
-
-        try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
-            // When
-            tenantResolutionFilter.doFilter(request, response, filterChain);
-
-            // Then
-            tenantContextMock.verify(() -> TenantContext.setCurrentTenant("ecsp"));
-            tenantContextMock.verify(TenantContext::clear);
-            verify(filterChain).doFilter(request, response);
-        }
-    }
-
     @Test
-    void testTenantResolutionFromPath() throws IOException, ServletException {
+    void tenantResolutionFromPathShouldExtractTenantFromPath() throws IOException, ServletException {
         // Given
         request.setRequestURI("/tenant/ecsp/oauth2/authorize");
+        when(tenantConfigurationService.tenantExists("ecsp")).thenReturn(true);
 
         try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
             // When
@@ -137,10 +147,11 @@ class TenantResolutionFilterTest {
     }
 
     @Test
-    void testTenantResolutionFromParameter() throws IOException, ServletException {
+    void tenantResolutionFromParameterShouldExtractTenantFromParameter() throws IOException, ServletException {
         // Given
         request.addParameter("tenant", "param-tenant");
         request.setRequestURI("/oauth2/authorize");
+        when(tenantConfigurationService.tenantExists("param-tenant")).thenReturn(true);
 
         try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
             // When
@@ -154,12 +165,12 @@ class TenantResolutionFilterTest {
     }
 
     @Test
-    void testTenantResolutionPriority() throws IOException, ServletException {
+    void tenantResolutionPriorityShouldPreferHeaderOverOtherSources() throws IOException, ServletException {
         // Given - Set all possible tenant sources
         request.addHeader("tenantId", "header-tenant");
-        request.setServerName("subdomain.example.com");
         request.setRequestURI("/tenant/path-tenant/oauth2/authorize");
         request.addParameter("tenant", "param-tenant");
+        when(tenantConfigurationService.tenantExists("header-tenant")).thenReturn(true);
 
         try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
             // When
@@ -173,57 +184,78 @@ class TenantResolutionFilterTest {
     }
 
     @Test
-    void testNoTenantResolved() throws IOException, ServletException {
+    void noTenantResolvedShouldNotSetTenantContext() throws IOException, ServletException {
         // Given - No tenant information in request
         request.setRequestURI("/oauth2/authorize");
-        request.setServerName("example.com"); // No subdomain
 
         try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
-            // When
+            // When - Should return error response for no valid tenant
             tenantResolutionFilter.doFilter(request, response, filterChain);
 
-            // Then - No tenant should be set
-            tenantContextMock.verify(() -> TenantContext.setCurrentTenant(any()), never());
-            tenantContextMock.verify(() -> TenantContext.clear());
-            verify(filterChain).doFilter(request, response);
+            // Then - Should return error response instead of proceeding
+            assertTenantNotFoundErrorResponse();
+
+            // Verify tenant context was cleared
+            tenantContextMock.verify(TenantContext::clear);
+            // Filter chain should not be called due to error response
+            verify(filterChain, never()).doFilter(request, response);
         }
     }
 
     @Test
-    void testEmptyTenantHeader() throws IOException, ServletException {
+    void emptyTenantHeaderShouldBeIgnored() throws IOException, ServletException {
         // Given
         request.addHeader("tenantId", "");
         request.setRequestURI("/oauth2/authorize");
 
         try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
-            // When
+            // When - Should return error response for empty header (no valid tenant)
             tenantResolutionFilter.doFilter(request, response, filterChain);
 
-            // Then - Empty header should be ignored
-            tenantContextMock.verify(() -> TenantContext.setCurrentTenant(any()), never());
+            // Then - Should return error response instead of proceeding
+            assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatus());
+            assertEquals(MediaType.APPLICATION_JSON_VALUE, response.getContentType());
+            
+            String responseContent = response.getContentAsString();
+            assertTrue(responseContent.contains("TENANT_NOT_FOUND_IN_REQUEST"));
+
+            // Verify tenant context was cleared
             tenantContextMock.verify(TenantContext::clear);
-            verify(filterChain).doFilter(request, response);
+            // Filter chain should not be called due to exception
+            verify(filterChain, never()).doFilter(request, response);
         }
     }
 
     @Test
-    void testNullTenantHeader() throws IOException, ServletException {
+    void nullTenantHeaderShouldBeIgnored() throws IOException, ServletException {
         // Given - No header is added (simulating null header)
-        request.setRequestURI("/oauth2/authorize");
+        tenantValidation("/oauth2/authorize");
+    }
+
+    private void tenantValidation(String requestUri)
+            throws IOException, ServletException {
+        request.setRequestURI(requestUri);
 
         try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
             // When
             tenantResolutionFilter.doFilter(request, response, filterChain);
 
-            // Then - Null header should be ignored
-            tenantContextMock.verify(() -> TenantContext.setCurrentTenant(any()), never());
+            // Then - Should return error response instead of proceeding
+            assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatus());
+            assertEquals(MediaType.APPLICATION_JSON_VALUE, response.getContentType());
+            
+            String responseContent = response.getContentAsString();
+            assertTrue(responseContent.contains("TENANT_NOT_FOUND_IN_REQUEST"));
+
+            // Verify tenant context was cleared
             tenantContextMock.verify(TenantContext::clear);
-            verify(filterChain).doFilter(request, response);
+            // Filter chain should not be called due to exception
+            verify(filterChain, never()).doFilter(request, response);
         }
     }
 
     @Test
-    void testWhitespaceOnlyTenantHeader() throws IOException, ServletException {
+    void whitespaceOnlyTenantHeaderShouldBeIgnored() throws IOException, ServletException {
         // Given
         request.addHeader("tenantId", "   ");
         request.setRequestURI("/oauth2/authorize");
@@ -232,151 +264,71 @@ class TenantResolutionFilterTest {
             // When
             tenantResolutionFilter.doFilter(request, response, filterChain);
 
-            // Then - Whitespace-only header should be ignored
-            tenantContextMock.verify(() -> TenantContext.setCurrentTenant(any()), never());
+            // Then - Should return error response instead of proceeding
+            assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatus());
+            assertEquals(MediaType.APPLICATION_JSON_VALUE, response.getContentType());
+            
+            String responseContent = response.getContentAsString();
+            assertTrue(responseContent.contains("TENANT_NOT_FOUND_IN_REQUEST"));
+
+            // Verify tenant context was cleared
             tenantContextMock.verify(TenantContext::clear);
-            verify(filterChain).doFilter(request, response);
+            // Filter chain should not be called due to exception
+            verify(filterChain, never()).doFilter(request, response);
         }
     }
 
     @Test
-    void testSubdomainExtractionWithInsufficientParts() throws IOException, ServletException {
+    void pathExtractionWithInvalidPathShouldBeIgnored() throws IOException, ServletException {
+        
+        tenantValidation("/tenant/");
+        
+    }
+
+    @Test
+    void pathExtractionWithShortPathShouldBeIgnored() throws IOException, ServletException {
         // Given
-        request.setServerName("example.com"); // Only 2 parts
-        request.setRequestURI("/oauth2/authorize");
-
-        try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
-            // When
-            tenantResolutionFilter.doFilter(request, response, filterChain);
-
-            // Then - No tenant should be set
-            tenantContextMock.verify(() -> TenantContext.setCurrentTenant(any()), never());
-            tenantContextMock.verify(TenantContext::clear);
-            verify(filterChain).doFilter(request, response);
-        }
+        tenantValidation("/tenant");
+        
     }
 
     @Test
-    void testSubdomainExtractionWithEmptyServerName() throws IOException, ServletException {
+    void pathExtractionWithNonTenantPathShouldBeIgnored() throws IOException, ServletException {
         // Given
-        request.setServerName("");
-        request.setRequestURI("/oauth2/authorize");
-
-        try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
-            // When
-            tenantResolutionFilter.doFilter(request, response, filterChain);
-
-            // Then - No tenant should be set
-            tenantContextMock.verify(() -> TenantContext.setCurrentTenant(any()), never());
-            tenantContextMock.verify(TenantContext::clear);
-            verify(filterChain).doFilter(request, response);
-        }
+        tenantValidation("/api/v1/oauth2/authorize");
     }
 
     @Test
-    void testSubdomainExtractionWithNullServerName() throws IOException, ServletException {
+    void pathExtractionWithEmptyPathShouldBeIgnored() throws IOException, ServletException {
         // Given
-        request.setServerName(null);
-        request.setRequestURI("/oauth2/authorize");
-
-        try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
-            // When
-            tenantResolutionFilter.doFilter(request, response, filterChain);
-
-            // Then - No tenant should be set
-            tenantContextMock.verify(() -> TenantContext.setCurrentTenant(any()), never());
-            tenantContextMock.verify(TenantContext::clear);
-            verify(filterChain).doFilter(request, response);
-        }
+        tenantValidation("");
     }
 
     @Test
-    void testPathExtractionWithInvalidPath() throws IOException, ServletException {
-        // Given
-        request.setRequestURI("/tenant/"); // Missing tenant ID
-        request.setServerName("example.com");
-
-        try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
-            // When
-            tenantResolutionFilter.doFilter(request, response, filterChain);
-
-            // Then - No tenant should be set
-            tenantContextMock.verify(() -> TenantContext.setCurrentTenant(any()), never());
-            tenantContextMock.verify(TenantContext::clear);
-            verify(filterChain).doFilter(request, response);
-        }
-    }
-
-    @Test
-    void testPathExtractionWithShortPath() throws IOException, ServletException {
-        // Given
-        request.setRequestURI("/tenant"); // Too short
-        request.setServerName("example.com");
-
-        try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
-            // When
-            tenantResolutionFilter.doFilter(request, response, filterChain);
-
-            // Then - No tenant should be set
-            tenantContextMock.verify(() -> TenantContext.setCurrentTenant(any()), never());
-            tenantContextMock.verify(TenantContext::clear);
-            verify(filterChain).doFilter(request, response);
-        }
-    }
-
-    @Test
-    void testPathExtractionWithNonTenantPath() throws IOException, ServletException {
-        // Given
-        request.setRequestURI("/api/v1/oauth2/authorize");
-        request.setServerName("example.com");
-
-        try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
-            // When
-            tenantResolutionFilter.doFilter(request, response, filterChain);
-
-            // Then - No tenant should be set
-            tenantContextMock.verify(() -> TenantContext.setCurrentTenant(any()), never());
-            tenantContextMock.verify(TenantContext::clear);
-            verify(filterChain).doFilter(request, response);
-        }
-    }
-
-    @Test
-    void testPathExtractionWithEmptyPath() throws IOException, ServletException {
-        // Given
-        request.setRequestURI("");
-        request.setServerName("example.com");
-
-        try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
-            // When
-            tenantResolutionFilter.doFilter(request, response, filterChain);
-
-            // Then - No tenant should be set
-            tenantContextMock.verify(() -> TenantContext.setCurrentTenant(any()), never());
-            tenantContextMock.verify(TenantContext::clear);
-            verify(filterChain).doFilter(request, response);
-        }
-    }
-
-    @Test
-    void testPathExtractionWithNullPath() throws IOException, ServletException {
+    void pathExtractionWithNullPathShouldBeIgnored() throws IOException, ServletException {
         // Given
         request.setRequestURI(null);
-        request.setServerName("example.com");
 
         try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
             // When
             tenantResolutionFilter.doFilter(request, response, filterChain);
 
-            // Then - No tenant should be set
-            tenantContextMock.verify(() -> TenantContext.setCurrentTenant(any()), never());
+            // Then - Should return error response instead of proceeding
+            assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatus());
+            assertEquals(MediaType.APPLICATION_JSON_VALUE, response.getContentType());
+            
+            String responseContent = response.getContentAsString();
+            assertTrue(responseContent.contains("TENANT_NOT_FOUND_IN_REQUEST"));
+
+            // Verify tenant context was cleared
             tenantContextMock.verify(TenantContext::clear);
-            verify(filterChain).doFilter(request, response);
+            // Filter chain should not be called due to exception
+            verify(filterChain, never()).doFilter(request, response);
         }
     }
 
     @Test
-    void testParameterExtractionWithEmptyParameter() throws IOException, ServletException {
+    void parameterExtractionWithEmptyParameterShouldBeIgnored() throws IOException, ServletException {
         // Given
         request.addParameter("tenant", "");
         request.setRequestURI("/oauth2/authorize");
@@ -385,15 +337,22 @@ class TenantResolutionFilterTest {
             // When
             tenantResolutionFilter.doFilter(request, response, filterChain);
 
-            // Then - Empty parameter should be ignored
-            tenantContextMock.verify(() -> TenantContext.setCurrentTenant(any()), never());
+            // Then - Should return error response instead of proceeding
+            assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatus());
+            assertEquals(MediaType.APPLICATION_JSON_VALUE, response.getContentType());
+            
+            String responseContent = response.getContentAsString();
+            assertTrue(responseContent.contains("TENANT_NOT_FOUND_IN_REQUEST"));
+
+            // Verify tenant context was cleared
             tenantContextMock.verify(TenantContext::clear);
-            verify(filterChain).doFilter(request, response);
+            // Filter chain should not be called due to exception
+            verify(filterChain, never()).doFilter(request, response);
         }
     }
 
     @Test
-    void testParameterExtractionWithNullParameter() throws IOException, ServletException {
+    void parameterExtractionWithNullParameterShouldBeIgnored() throws IOException, ServletException {
         // Given
         request.addParameter("tenant", (String) null);
         request.setRequestURI("/oauth2/authorize");
@@ -402,18 +361,26 @@ class TenantResolutionFilterTest {
             // When
             tenantResolutionFilter.doFilter(request, response, filterChain);
 
-            // Then - Null parameter should be ignored
-            tenantContextMock.verify(() -> TenantContext.setCurrentTenant(any()), never());
+            // Then - Should return error response instead of proceeding
+            assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatus());
+            assertEquals(MediaType.APPLICATION_JSON_VALUE, response.getContentType());
+            
+            String responseContent = response.getContentAsString();
+            assertTrue(responseContent.contains("TENANT_NOT_FOUND_IN_REQUEST"));
+
+            // Verify tenant context was cleared
             tenantContextMock.verify(TenantContext::clear);
-            verify(filterChain).doFilter(request, response);
+            // Filter chain should not be called due to exception
+            verify(filterChain, never()).doFilter(request, response);
         }
     }
 
     @Test
-    void testTenantContextAlwaysCleared() throws IOException, ServletException {
+    void tenantContextAlwaysClearedShouldEnsureCleanup() throws IOException, ServletException {
         // Given
         request.addHeader("tenantId", "test-tenant");
         request.setRequestURI("/oauth2/authorize");
+        when(tenantConfigurationService.tenantExists("test-tenant")).thenReturn(true);
         
         // Simulate an exception in the filter chain
         doThrow(new RuntimeException("Test exception")).when(filterChain).doFilter(any(), any());
@@ -429,27 +396,13 @@ class TenantResolutionFilterTest {
         }
     }
 
-    //@Test
-    void testComplexSubdomainExtraction() throws IOException, ServletException {
-        // Given
-        request.setServerName("tenant1.dev.example.com");
-        request.setRequestURI("/oauth2/authorize");
-
-        try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
-            // When
-            tenantResolutionFilter.doFilter(request, response, filterChain);
-
-            // Then - Should extract first part as tenant
-            tenantContextMock.verify(() -> TenantContext.setCurrentTenant("tenant1"));
-            tenantContextMock.verify(TenantContext::clear);
-            verify(filterChain).doFilter(request, response);
-        }
-    }
+    
 
     @Test
-    void testComplexPathExtraction() throws IOException, ServletException {
+    void complexPathExtractionShouldHandleNestedPaths() throws IOException, ServletException {
         // Given
         request.setRequestURI("/tenant/my-tenant/api/v1/oauth2/authorize");
+        when(tenantConfigurationService.tenantExists("my-tenant")).thenReturn(true);
 
         try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
             // When
@@ -463,11 +416,11 @@ class TenantResolutionFilterTest {
     }
 
     @Test
-    void testTenantResolutionFallbackChain() throws IOException, ServletException {
+    void tenantResolutionFallbackChainShouldTestFallbackOrder() throws IOException, ServletException {
         // Given - Only parameter is available
-        request.setServerName("example.com"); // No subdomain
         request.setRequestURI("/oauth2/authorize"); // No tenant path
         request.addParameter("tenant", "fallback-tenant");
+        when(tenantConfigurationService.tenantExists("fallback-tenant")).thenReturn(true);
 
         try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
             // When
@@ -480,37 +433,158 @@ class TenantResolutionFilterTest {
         }
     }
 
+
     @Test
-    void testTenantResolutionWithSpecialCharacters() throws IOException, ServletException {
+    void tenantExtractionFromOauthTokenEndpoint() throws IOException, ServletException {
         // Given
-        request.addHeader("tenantId", "tenant-with-dashes_and_underscores");
-        request.setRequestURI("/oauth2/authorize");
+        request.setRequestURI("/issuer1/oauth2/token");
+        when(tenantConfigurationService.tenantExists("issuer1")).thenReturn(true);
 
         try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
             // When
             tenantResolutionFilter.doFilter(request, response, filterChain);
 
             // Then
-            tenantContextMock.verify(() -> TenantContext.setCurrentTenant("tenant-with-dashes_and_underscores"));
+            tenantContextMock.verify(() -> TenantContext.setCurrentTenant("issuer1"));
             tenantContextMock.verify(TenantContext::clear);
             verify(filterChain).doFilter(request, response);
         }
     }
 
     @Test
-    void testTenantResolutionWithNumericTenant() throws IOException, ServletException {
+    void tenantExtractionFromOauthRevokeEndpoint() throws IOException, ServletException {
         // Given
-        request.addHeader("tenantId", "123456");
-        request.setRequestURI("/oauth2/authorize");
+        request.setRequestURI("/ecsp/oauth2/revoke");
+        when(tenantConfigurationService.tenantExists("ecsp")).thenReturn(true);
 
         try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
             // When
             tenantResolutionFilter.doFilter(request, response, filterChain);
 
             // Then
-            tenantContextMock.verify(() -> TenantContext.setCurrentTenant("123456"));
+            tenantContextMock.verify(() -> TenantContext.setCurrentTenant("ecsp"));
             tenantContextMock.verify(TenantContext::clear);
             verify(filterChain).doFilter(request, response);
+        }
+    }
+
+    @Test
+    void tenantExtractionFromOauthUserInfoEndpoint() throws IOException, ServletException {
+        // Given
+        request.setRequestURI("/demo/oauth2/userinfo");
+        when(tenantConfigurationService.tenantExists("demo")).thenReturn(true);
+
+        try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
+            // When
+            tenantResolutionFilter.doFilter(request, response, filterChain);
+
+            // Then
+            tenantContextMock.verify(() -> TenantContext.setCurrentTenant("demo"));
+            tenantContextMock.verify(TenantContext::clear);
+            verify(filterChain).doFilter(request, response);
+        }
+    }
+
+    @Test
+    void tenantExtractionFromOauthJwksEndpoint() throws IOException, ServletException {
+        // Given
+        request.setRequestURI("/issuer2/oauth2/jwks");
+        when(tenantConfigurationService.tenantExists("issuer2")).thenReturn(true);
+
+        try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
+            // When
+            tenantResolutionFilter.doFilter(request, response, filterChain);
+
+            // Then
+            tenantContextMock.verify(() -> TenantContext.setCurrentTenant("issuer2"));
+            tenantContextMock.verify(TenantContext::clear);
+            verify(filterChain).doFilter(request, response);
+        }
+    }
+
+    @Test
+    void tenantExtractionFromLoginEndpoint() throws IOException, ServletException {
+        // Given
+        request.setRequestURI("/ecsp/login/oauth2/code/google");
+        when(tenantConfigurationService.tenantExists("ecsp")).thenReturn(true);
+
+        try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
+            // When
+            tenantResolutionFilter.doFilter(request, response, filterChain);
+
+            // Then
+            tenantContextMock.verify(() -> TenantContext.setCurrentTenant("ecsp"));
+            tenantContextMock.verify(TenantContext::clear);
+            verify(filterChain).doFilter(request, response);
+        }
+    }
+
+    @Test
+    void tenantExtractionFromCustomRevokeAdminEndpoint() throws IOException, ServletException {
+        // Given
+        request.setRequestURI("/issuer1/revoke/revokeByAdmin");
+        when(tenantConfigurationService.tenantExists("issuer1")).thenReturn(true);
+
+        try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
+            // When
+            tenantResolutionFilter.doFilter(request, response, filterChain);
+
+            // Then
+            tenantContextMock.verify(() -> TenantContext.setCurrentTenant("issuer1"));
+            tenantContextMock.verify(TenantContext::clear);
+            verify(filterChain).doFilter(request, response);
+        }
+    }
+
+    @Test
+    void tenantExtractionFromOauthLogoutEndpoint() throws IOException, ServletException {
+        // Given
+        request.setRequestURI("/demo/oauth2/logout");
+        when(tenantConfigurationService.tenantExists("demo")).thenReturn(true);
+
+        try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
+            // When
+            tenantResolutionFilter.doFilter(request, response, filterChain);
+
+            // Then
+            tenantContextMock.verify(() -> TenantContext.setCurrentTenant("demo"));
+            tenantContextMock.verify(TenantContext::clear);
+            verify(filterChain).doFilter(request, response);
+        }
+    }
+
+    @Test
+    void excludedPathsShouldNotExtractTenant() throws IOException, ServletException {
+        // Given - Test various excluded paths
+        String[] excludedPaths = {
+            "/api/oauth2/authorize",
+            "/v1/oauth2/token", 
+            "/public/oauth2/userinfo",
+            "/health/oauth2/status",
+            "/admin/oauth2/config",
+            "/management/oauth2/info"
+        };
+
+        for (String excludedPath : excludedPaths) {
+            request = new MockHttpServletRequest(); // Reset request
+            request.setRequestURI(excludedPath);
+
+            try (MockedStatic<TenantContext> tenantContextMock = mockStatic(TenantContext.class)) {
+                // When
+                tenantResolutionFilter.doFilter(request, response, filterChain);
+
+                // Then - Should return error response instead of proceeding
+                assertEquals(HttpStatus.BAD_REQUEST.value(), response.getStatus(), 
+                    "Expected error response for excluded path: " + excludedPath);
+                assertEquals(MediaType.APPLICATION_JSON_VALUE, response.getContentType());
+                
+                String responseContent = response.getContentAsString();
+                assertTrue(responseContent.contains("TENANT_NOT_FOUND_IN_REQUEST"),
+                    "Expected TENANT_NOT_FOUND_IN_REQUEST for excluded path: " + excludedPath);
+
+                tenantContextMock.verify(TenantContext::clear);
+                verify(filterChain, never()).doFilter(request, response);
+            }
         }
     }
 }

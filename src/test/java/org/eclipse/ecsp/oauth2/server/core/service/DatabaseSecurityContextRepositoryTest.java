@@ -21,11 +21,13 @@ package org.eclipse.ecsp.oauth2.server.core.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.SneakyThrows;
 import org.eclipse.ecsp.oauth2.server.core.authentication.tokens.CustomUserPwdAuthenticationToken;
+import org.eclipse.ecsp.oauth2.server.core.config.TenantContext;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.AccountProperties;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.MultiTenantProperties;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
 import org.eclipse.ecsp.oauth2.server.core.entities.AuthorizationSecurityContext;
 import org.eclipse.ecsp.oauth2.server.core.repositories.AuthorizationSecurityContextRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -127,6 +129,15 @@ class DatabaseSecurityContextRepositoryTest {
         Map<String, TenantProperties> tenantsMap = new HashMap<>();
         tenantsMap.put("ecsp", tenantProperties);
         when(multiTenantProperties.getTenants()).thenReturn(tenantsMap);
+        
+        // Set up tenant context for multi-tenancy tests
+        TenantContext.setCurrentTenant("ecsp");
+    }
+
+    @AfterEach
+    void tearDown() {
+        // Clean up tenant context after each test
+        TenantContext.clear();
     }
 
     /**

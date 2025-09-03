@@ -48,6 +48,7 @@ public final class AuthorizationServerConstants {
     public static final String TENANT_EXTERNAL_URLS_PASSWORD_POLICY_ENDPOINT = "password-policy-endpoint";
 
     public static final String TENANT_KEYSTORE_FILENAME = "key-store-filename";
+    public static final String TENANT_KEYSTORE_JKS_ENCODED_CONTENT = "key-store-jks-encoded-content";
     public static final String TENANT_KEYSTORE_PASS = "key-store-password";
     public static final String TENANT_KEYSTORE_ALIAS = "key-alias";
     public static final String TENANT_KEYSTORE_TYPE = "key-type";

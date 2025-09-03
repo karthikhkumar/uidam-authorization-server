@@ -18,10 +18,12 @@
 
 package org.eclipse.ecsp.oauth2.server.core.controller;
 
+import org.eclipse.ecsp.oauth2.server.core.utils.UiAttributeUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -40,6 +42,9 @@ class EmailVerificationControllerTest {
 
     @Autowired
     private WebApplicationContext applicationContext;
+
+    @MockBean
+    private UiAttributeUtils uiAttributeUtils;
 
     private MockMvc mockMvc;
 
@@ -61,7 +66,7 @@ class EmailVerificationControllerTest {
     @Test
     void testVerifyEmailSuccess() throws Exception {
         this.mockMvc
-            .perform(get("/emailVerification/verify")
+            .perform(get("/ecsp/emailVerification/verify")
                          .param("success", "true"))
             .andExpect(status().isOk())
             .andExpect(view().name("/emailVerify/email-verification"))
@@ -78,7 +83,7 @@ class EmailVerificationControllerTest {
     @Test
     void testVerifyEmailFailure() throws Exception {
         this.mockMvc
-            .perform(get("/emailVerification/verify")
+            .perform(get("/{tenantId}/emailVerification/verify", "ecsp")
                          .param("success", "false"))
             .andExpect(status().isOk())
             .andExpect(view().name("/emailVerify/email-verification"))
@@ -95,7 +100,7 @@ class EmailVerificationControllerTest {
     @Test
     void testVerifyEmailError() throws Exception {
         this.mockMvc
-            .perform(get("/emailVerification/verify")
+            .perform(get("/{tenantId}/emailVerification/verify", "ecsp")
                          .param("success", "error"))
             .andExpect(status().isOk())
             .andExpect(view().name("/emailVerify/email-verification"))
@@ -113,7 +118,7 @@ class EmailVerificationControllerTest {
     @Test
     void testVerifyEmailIncorrectStatus() throws Exception {
         this.mockMvc
-            .perform(get("/emailVerification/verify")
+            .perform(get("/{tenantId}/emailVerification/verify", "ecsp")
                          .param("success", "random_value"))
             .andExpect(status().isOk())
             .andExpect(view().name("/emailVerify/email-verification"))

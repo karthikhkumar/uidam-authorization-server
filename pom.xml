@@ -236,6 +236,7 @@
             <artifactId>micrometer-registry-prometheus</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!--
         <dependency>
             <groupId>org.eclipse.ecsp</groupId>
             <artifactId>sql-dao</artifactId>
@@ -270,7 +271,12 @@
                 	<artifactId>postgresql</artifactId>
                 </exclusion>				
             </exclusions>
-        </dependency>
+        </dependency>-->
+        <dependency>
+          	<groupId>javax.annotation</groupId>
+            <artifactId>javax.annotation-api</artifactId>
+            <version>1.2</version>
+        </dependency>        
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>

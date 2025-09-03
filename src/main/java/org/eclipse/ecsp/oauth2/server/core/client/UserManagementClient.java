@@ -75,6 +75,7 @@ import static org.eclipse.ecsp.oauth2.server.core.common.constants.Authorization
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.USER_ALREADY_EXISTS_PLEASE_TRY_AGAIN;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.ACCOUNT_NAME_HEADER;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.EMPTY_STRING;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.TENANT_ID_HEADER;
 import static org.eclipse.ecsp.oauth2.server.core.utils.CommonMethodsUtils.obtainRecaptchaResponse;
 import static org.eclipse.ecsp.oauth2.server.core.utils.RequestResponseLogger.logRequest;
 import static org.eclipse.ecsp.oauth2.server.core.utils.RequestResponseLogger.logResponse;
@@ -196,7 +197,9 @@ public class UserManagementClient {
             UserDetailsResponse userDetailsResponse = null;
 
             userDetailsResponse = currentWebClient.method(HttpMethod.GET).uri(uri, username)
-                    .header(ACCOUNT_NAME_HEADER, accountName).accept(MediaType.APPLICATION_JSON).retrieve()
+                    .header(ACCOUNT_NAME_HEADER, accountName)
+                    .header(TENANT_ID_HEADER, tenantProperties.getTenantId())
+                    .accept(MediaType.APPLICATION_JSON).retrieve()
                     .bodyToMono(UserDetailsResponse.class).block();
             userDetailsResponse = objectMapper.convertValue(userDetailsResponse,
                     new TypeReference<UserDetailsResponse>() {
@@ -260,6 +263,7 @@ public class UserManagementClient {
 
             response = currentWebClient.method(HttpMethod.POST).uri(uri, userId)
                     .header(IgniteOauth2CoreConstants.CORRELATION_ID, UUID.randomUUID().toString())
+                    .header(TENANT_ID_HEADER, tenantProperties.getTenantId())
                     .contentType(MediaType.APPLICATION_JSON).bodyValue(userEvent).retrieve().bodyToMono(String.class)
                     .block();
             return response;
@@ -290,7 +294,9 @@ public class UserManagementClient {
 
             currentWebClient.method(HttpMethod.POST).uri(uri, username)
                     .header(IgniteOauth2CoreConstants.CORRELATION_ID, UUID.randomUUID().toString())
-                    .header(ACCOUNT_NAME_HEADER, accountName).contentType(MediaType.APPLICATION_JSON).retrieve()
+                    .header(ACCOUNT_NAME_HEADER, accountName)
+                    .header(TENANT_ID_HEADER, tenantProperties.getTenantId())
+                    .contentType(MediaType.APPLICATION_JSON).retrieve()
                     .toBodilessEntity().block();
         } catch (WebClientResponseException ex) {
             if (ex.getStatusCode().isSameCodeAs(HttpStatus.NOT_FOUND)) {
@@ -323,6 +329,7 @@ public class UserManagementClient {
             String response = null;
             response = currentWebClient.method(HttpMethod.POST).uri(uri)
                     .header(IgniteOauth2CoreConstants.CORRELATION_ID, UUID.randomUUID().toString())
+                    .header(TENANT_ID_HEADER, tenantProperties.getTenantId())
                     .contentType(MediaType.APPLICATION_JSON).bodyValue(updatePasswordData).retrieve()
                     .bodyToMono(String.class).block();
             return response;
@@ -356,6 +363,7 @@ public class UserManagementClient {
             userDto = validateCaptchaAndAddRequiredParams(userDto, request);
             UserDetailsResponse userDetailsResponse = currentWebClient.method(HttpMethod.POST).uri(uri)
                     .header(IgniteOauth2CoreConstants.CORRELATION_ID, UUID.randomUUID().toString())
+                    .header(TENANT_ID_HEADER, tenantProperties.getTenantId())
                     .contentType(MediaType.APPLICATION_JSON).bodyValue(userDto).retrieve()
                     .bodyToMono(UserDetailsResponse.class).block();
             return objectMapper.convertValue(userDetailsResponse, new TypeReference<UserDetailsResponse>() {
@@ -471,7 +479,9 @@ public class UserManagementClient {
             String uri = tenantProperties.getExternalUrls().get(TENANT_EXTERNAL_URLS_PASSWORD_POLICY_ENDPOINT);
             PasswordPolicyResponseDto password = null;
 
-            password = currentWebClient.method(HttpMethod.GET).uri(uri).accept(MediaType.APPLICATION_JSON).retrieve()
+            password = currentWebClient.method(HttpMethod.GET).uri(uri)
+                    .header(TENANT_ID_HEADER, tenantProperties.getTenantId())
+                    .accept(MediaType.APPLICATION_JSON).retrieve()
                     .bodyToMono(PasswordPolicyResponseDto.class).block();
             LOGGER.debug("Password policy response received");
             return password;
@@ -503,6 +513,7 @@ public class UserManagementClient {
 
             UserDetailsResponse userDetailsResponse = currentWebClient.method(HttpMethod.POST).uri(uri)
                     .header(IgniteOauth2CoreConstants.CORRELATION_ID, UUID.randomUUID().toString())
+                    .header(TENANT_ID_HEADER, tenantProperties.getTenantId())
                     .contentType(MediaType.APPLICATION_JSON).bodyValue(userRequest).retrieve()
                     .bodyToMono(UserDetailsResponse.class).block();
             LOGGER.info("Successfully created federated user: {}", userRequest.getUserName());

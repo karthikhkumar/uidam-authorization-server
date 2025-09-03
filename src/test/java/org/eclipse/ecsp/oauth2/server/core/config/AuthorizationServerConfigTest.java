@@ -149,33 +149,7 @@ class AuthorizationServerConfigTest {
 
         // Assert
         assertNotNull(result);
-        assertEquals("https://localhost/oauth2", result.getIssuer());
-    }
-
-    @Test
-    void testAuthorizationServerSettings_WithEmptyPrefix_ShouldConfigureIssuerUrl() {
-        // Arrange
-        ReflectionTestUtils.setField(authorizationServerConfig, "issuerPrefix", "");
-
-        // Act
-        AuthorizationServerSettings result = authorizationServerConfig.authorizationServerSettings();
-
-        // Assert
-        assertNotNull(result);
-        assertEquals("https://localhost", result.getIssuer());
-    }
-
-    @Test
-    void testAuthorizationServerSettings_WithNullPrefix_ShouldConfigureIssuerUrl() {
-        // Arrange
-        ReflectionTestUtils.setField(authorizationServerConfig, "issuerPrefix", null);
-
-        // Act
-        AuthorizationServerSettings result = authorizationServerConfig.authorizationServerSettings();
-
-        // Assert
-        assertNotNull(result);
-        assertEquals("https://localhost", result.getIssuer());
+        assertEquals("/oauth2/authorize", result.getAuthorizationEndpoint());
     }
 
     @Test

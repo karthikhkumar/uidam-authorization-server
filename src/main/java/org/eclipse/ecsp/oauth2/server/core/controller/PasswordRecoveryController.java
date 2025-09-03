@@ -34,9 +34,9 @@ import org.eclipse.ecsp.oauth2.server.core.exception.UserNotFoundException;
 import org.eclipse.ecsp.oauth2.server.core.service.PasswordPolicyService;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
 import org.eclipse.ecsp.oauth2.server.core.service.impl.CaptchaServiceImpl;
+import org.eclipse.ecsp.oauth2.server.core.utils.UiAttributeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -72,7 +72,7 @@ import static org.eclipse.ecsp.oauth2.server.core.utils.CommonMethodsUtils.obtai
  * resetting the password using a link received in an email, and updating the password in the system.
  */
 @Controller
-@RequestMapping("/recovery")
+@RequestMapping("/{tenantId}/recovery")
 public class PasswordRecoveryController {
     private static final Logger LOGGER = LoggerFactory.getLogger(PasswordRecoveryController.class);
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -82,6 +82,7 @@ public class PasswordRecoveryController {
     private final UserManagementClient userManagementClient;
     private final CaptchaServiceImpl captchaServiceImpl;
     private final PasswordPolicyService passwordPolicyService;
+    private final UiAttributeUtils uiAttributeUtils;
 
     /**
      * This is the constructor for the PasswordRecoveryController class.
@@ -91,16 +92,18 @@ public class PasswordRecoveryController {
      * @param userManagementClient The client for user management operations.
      * @param captchaServiceImpl The service for captcha processing.
      * @param passwordPolicyService The service for password policy management.
+     * @param uiAttributeUtils The utility for adding UI attributes to models.
      */
-    @Autowired
     public PasswordRecoveryController(TenantConfigurationService tenantConfigurationService,
             UserManagementClient userManagementClient,
             CaptchaServiceImpl captchaServiceImpl,
-            PasswordPolicyService passwordPolicyService) {
+            PasswordPolicyService passwordPolicyService,
+            UiAttributeUtils uiAttributeUtils) {
         this.tenantConfigurationService = tenantConfigurationService;
         this.userManagementClient = userManagementClient;
         this.captchaServiceImpl = captchaServiceImpl;
         this.passwordPolicyService = passwordPolicyService;
+        this.uiAttributeUtils = uiAttributeUtils;
     }
 
     private static final String MESSAGE_LITERAL = "message";
@@ -116,11 +119,17 @@ public class PasswordRecoveryController {
      * @return A string representing the name of the view to be returned.
      */
     @GetMapping
-    public String passwordInit(Model model) {
+    public String passwordInit(@PathVariable("tenantId") String tenantId, Model model) {
         TenantProperties tenantProperties = tenantConfigurationService.getTenantProperties();
         
         model.addAttribute(CAPTCHA_FIELD_ENABLED, true);
         model.addAttribute(CAPTCHA_SITE, tenantProperties.getCaptcha().getRecaptchaKeySite());
+        // expose tenantId for URL construction
+        model.addAttribute("issuer", tenantId);
+        
+        // Add UI configuration attributes
+        uiAttributeUtils.addUiAttributes(model, tenantId);
+        
         return RECOVERY_FORGOT_PASSWORD;
     }
 
@@ -138,7 +147,8 @@ public class PasswordRecoveryController {
      * @throws MalformedURLException If the password recovery URL is not a valid URL.
      */
     @PostMapping("/forgotPassword")
-    public ModelAndView passwordForgot(HttpServletRequest request, @RequestParam("username") String username,
+    public ModelAndView passwordForgot(@PathVariable("tenantId") String tenantId,
+                                       HttpServletRequest request, @RequestParam("username") String username,
                                        @RequestParam("accountName") String accountName, Model model)
             throws MalformedURLException {
 
@@ -167,7 +177,8 @@ public class PasswordRecoveryController {
      * @throws UnsupportedEncodingException If the character encoding is not supported.
      */
     @GetMapping("reset/{encodedParams}")
-    public ModelAndView changePassword(@PathVariable("encodedParams") String encodedParams, Model model
+    public ModelAndView changePassword(@PathVariable("tenantId") String tenantId,
+                                        @PathVariable("encodedParams") String encodedParams, Model model
     ) throws UnsupportedEncodingException {
 
         String decodedParams;
@@ -189,6 +200,12 @@ public class PasswordRecoveryController {
         model.addAttribute(SECRET_LITERAL, secret);
         model.addAttribute(CAPTCHA_FIELD_ENABLED, true);
         model.addAttribute(CAPTCHA_SITE, tenantProperties.getCaptcha().getRecaptchaKeySite());
+        // expose tenantId for URL construction in form action
+        model.addAttribute("issuer", tenantId);
+        
+        // Add UI configuration attributes
+        uiAttributeUtils.addUiAttributes(model, tenantId);
+        
         passwordPolicyService.setupPasswordPolicy(model, true);
         return new ModelAndView(RECOVERY_CHANGE_PASSWORD).addObject(model);
     }
@@ -207,7 +224,8 @@ public class PasswordRecoveryController {
      * @throws JsonProcessingException If there is a problem processing the JSON content.
      */
     @PostMapping("/reset")
-    public ModelAndView updatePassword(HttpServletRequest request, @RequestParam String password,
+    public ModelAndView updatePassword(@PathVariable("tenantId") String tenantId,
+                                       HttpServletRequest request, @RequestParam String password,
                                        @RequestParam String confirmPassword, @RequestParam String secret)
             throws JsonProcessingException {
 

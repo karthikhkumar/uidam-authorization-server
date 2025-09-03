@@ -24,6 +24,10 @@ import static org.mockito.Mockito.when;
  * Unit tests for {@link Oauth2LoginConfig}.
  */
 class Oauth2LoginConfigTest {
+    
+    private static final String TEST_TENANT = "test-tenant";
+    private static final String TEST_CLIENT_ID = "client";
+    
     @Mock
     private TenantConfigurationService tenantConfigurationService;
     @Mock
@@ -39,10 +43,10 @@ class Oauth2LoginConfigTest {
     }
 
     @Test
-    void clientRegistrationRepository_withExternalIdp_returnsRegistration() {
+    void clientRegistrationRepositoryWithExternalIdpReturnsRegistration() {
         ExternalIdpRegisteredClient idp = mock(ExternalIdpRegisteredClient.class);
         when(idp.getRegistrationId()).thenReturn("testidp");
-        when(idp.getClientId()).thenReturn("client");
+        when(idp.getClientId()).thenReturn(TEST_CLIENT_ID);
         when(idp.getClientSecret()).thenReturn("secret");
         when(idp.getClientAuthMethod())
                 .thenReturn(org.springframework.security.oauth2.core.ClientAuthenticationMethod.CLIENT_SECRET_BASIC);
@@ -53,20 +57,26 @@ class Oauth2LoginConfigTest {
         when(idp.getUserNameAttributeName()).thenReturn("sub");
         when(idp.getJwkSetUri()).thenReturn("https://auth.example.com/jwks");
         when(idp.getClientName()).thenReturn("Test IDP");
+        
+        // Mock the new multi-tenant approach
+        when(tenantConfigurationService.getAllTenants()).thenReturn(java.util.Set.of(TEST_TENANT));
+        when(tenantConfigurationService.getTenantProperties(TEST_TENANT)).thenReturn(tenantProperties);
         when(tenantProperties.getExternalIdpRegisteredClientList()).thenReturn(List.of(idp));
+        
         ClientRegistrationRepository repo = config.clientRegistrationRepository();
-        ClientRegistration reg = repo.findByRegistrationId("testidp");
+        // The registration ID should now be tenant-prefixed
+        ClientRegistration reg = repo.findByRegistrationId(TEST_TENANT + "-testidp");
         assertNotNull(reg);
-        assertEquals("testidp", reg.getRegistrationId());
-        assertEquals("client", reg.getClientId());
+        assertEquals(TEST_TENANT + "-testidp", reg.getRegistrationId());
+        assertEquals(TEST_CLIENT_ID, reg.getClientId());
     }
 
     @Test
-    void authorizedClientService_andRepository_beans() {
+    void authorizedClientServiceAndRepositoryBeans() {
         // Provide at least one mock registration to avoid IllegalArgumentException
         ExternalIdpRegisteredClient idp = mock(ExternalIdpRegisteredClient.class);
         when(idp.getRegistrationId()).thenReturn("testidp");
-        when(idp.getClientId()).thenReturn("client");
+        when(idp.getClientId()).thenReturn(TEST_CLIENT_ID);
         when(idp.getClientSecret()).thenReturn("secret");
         when(idp.getClientAuthMethod())
                 .thenReturn(org.springframework.security.oauth2.core.ClientAuthenticationMethod.CLIENT_SECRET_BASIC);
@@ -77,7 +87,12 @@ class Oauth2LoginConfigTest {
         when(idp.getUserNameAttributeName()).thenReturn("sub");
         when(idp.getJwkSetUri()).thenReturn("https://auth.example.com/jwks");
         when(idp.getClientName()).thenReturn("Test IDP");
+        
+        // Mock the new multi-tenant approach
+        when(tenantConfigurationService.getAllTenants()).thenReturn(java.util.Set.of(TEST_TENANT));
+        when(tenantConfigurationService.getTenantProperties(TEST_TENANT)).thenReturn(tenantProperties);
         when(tenantProperties.getExternalIdpRegisteredClientList()).thenReturn(List.of(idp));
+        
         ClientRegistrationRepository repo = config.clientRegistrationRepository();
         OAuth2AuthorizedClientService service = config.authorizedClientService(repo);
         assertNotNull(service);

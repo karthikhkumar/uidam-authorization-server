@@ -133,10 +133,11 @@ class AuthorizationControllerTest {
                 .scope("RevokeToken").build();
         when(clientRegistrationManager.findById("testClient")).thenReturn(registeredClient);
         when(jwtTokenValidator.validateToken(DUMMY_TOKEN)).thenReturn(true);
-        webTestClient.post().uri("/revoke/revokeByAdmin").headers(http -> {
+        webTestClient.post().uri("/{tenantId}/revoke/revokeByAdmin", "testClient").headers(http -> {
             http.add("Authorization", "Bearer " + DUMMY_TOKEN);
             http.add("Content-Type", "application/x-www-form-urlencoded");
             http.add(IgniteOauth2CoreConstants.CORRELATION_ID, "abcd");
+            http.add("tenantId", "testClient"); // Tenant header - easy to change to path param or URI later
         }).bodyValue("clientId=testClient").exchange().expectStatus().isEqualTo(HttpStatus.OK);
 
     }
@@ -169,10 +170,11 @@ class AuthorizationControllerTest {
                 .clientSecret("ChangeMe").authorizationGrantType(new AuthorizationGrantType("client_credentials"))
                 .scope("RevokeToken").build();
         when(clientRegistrationManager.findById("testClient")).thenReturn(registeredClient);
-        webTestClient.post().uri("/revoke/revokeByAdmin").headers(http -> {
+        webTestClient.post().uri("/{tenantId}/revoke/revokeByAdmin", "testClient").headers(http -> {
             http.add("Authorization", "Bearer " + DUMMY_TOKEN);
             http.add("Content-Type", "application/x-www-form-urlencoded");
             http.add(IgniteOauth2CoreConstants.CORRELATION_ID, "abcd");
+            http.add("tenantId", "testClient"); // Tenant header - easy to change to path param or URI later
         }).bodyValue("clientId=testClient").exchange().expectStatus().isEqualTo(HttpStatus.OK);
 
     }
@@ -209,10 +211,11 @@ class AuthorizationControllerTest {
                 .clientSecret("ChangeMe").authorizationGrantType(new AuthorizationGrantType("client_credentials"))
                 .scope("RevokeToken").build();
         when(clientRegistrationManager.findById("testClient")).thenReturn(registeredClient);
-        webTestClient.post().uri("/revoke/revokeByAdmin").headers(http -> {
+        webTestClient.post().uri("/{tenantId}/revoke/revokeByAdmin", "testClient").headers(http -> {
             http.add("Authorization", "Bearer " + DUMMY_TOKEN);
             http.add("Content-Type", "application/x-www-form-urlencoded");
             http.add(IgniteOauth2CoreConstants.CORRELATION_ID, "abcd");
+            http.add("tenantId", "testClient"); // Tenant header - easy to change to path param or URI later
         }).bodyValue("clientId=testClient").exchange().expectStatus().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
 
     }
@@ -249,10 +252,11 @@ class AuthorizationControllerTest {
                 .clientSecret("ChangeMe").authorizationGrantType(new AuthorizationGrantType("client_credentials"))
                 .scope("RevokeToken").build();
         when(clientRegistrationManager.findById("testClient")).thenReturn(registeredClient);
-        webTestClient.post().uri("/revoke/revokeByAdmin").headers(http -> {
+        webTestClient.post().uri("/{tenantId}/revoke/revokeByAdmin", "testClient").headers(http -> {
             http.add("Authorization", "Bearer " + DUMMY_TOKEN);
             http.add("Content-Type", "application/x-www-form-urlencoded");
             http.add(IgniteOauth2CoreConstants.CORRELATION_ID, "abcd");
+            http.add("tenantId", "testClient"); // Tenant header - easy to change to path param or URI later
         }).bodyValue("username=testClient").exchange().expectStatus().isEqualTo(HttpStatus.OK);
 
     }
@@ -289,10 +293,11 @@ class AuthorizationControllerTest {
                 .clientSecret("ChangeMe").authorizationGrantType(new AuthorizationGrantType("client_credentials"))
                 .scope("RevokeToken").build();
         when(clientRegistrationManager.findById("testClient")).thenReturn(registeredClient);
-        webTestClient.post().uri("/revoke/revokeByAdmin").headers(http -> {
+        webTestClient.post().uri("/{tenantId}/revoke/revokeByAdmin", "testClient").headers(http -> {
             http.add("Authorization", "Bearer " + DUMMY_TOKEN);
             http.add("Content-Type", "application/x-www-form-urlencoded");
             http.add(IgniteOauth2CoreConstants.CORRELATION_ID, "abcd");
+            http.add("tenantId", "testClient"); // Tenant header - easy to change to path param or URI later
         })
 
                 .exchange().expectStatus().isEqualTo(HttpStatus.BAD_REQUEST);
@@ -306,10 +311,11 @@ class AuthorizationControllerTest {
      */
     @Test
     void testRevokeToken_UnAuthorized() {
-        webTestClient.post().uri("/revoke/revokeByAdmin").headers(http -> {
+        webTestClient.post().uri("/{tenantId}/revoke/revokeByAdmin", "testClient").headers(http -> {
             http.add("Authorization", "Bearer abcd");
             http.add("Content-Type", "application/x-www-form-urlencoded");
             http.add(IgniteOauth2CoreConstants.CORRELATION_ID, "abcd");
+            http.add("tenantId", "testClient"); // Tenant header - easy to change to path param or URI later
         }).bodyValue("clientId=testClient").exchange().expectStatus().isEqualTo(HttpStatus.UNAUTHORIZED);
 
     }
@@ -345,9 +351,10 @@ class AuthorizationControllerTest {
                 .clientSecret("ChangeMe").authorizationGrantType(new AuthorizationGrantType("client_credentials"))
                 .scope("RevokeToken").build();
         when(clientRegistrationManager.findById("testClient")).thenReturn(registeredClient);
-        webTestClient.post().uri("/revoke/revokeByAdmin").headers(http -> {
+        webTestClient.post().uri("/{tenantId}/revoke/revokeByAdmin", "testClient").headers(http -> {
             http.add("Authorization", "Bearer " + DUMMY_TOKEN);
             http.add("Content-Type", "application/x-www-form-urlencoded");
+            http.add("tenantId", "testClient"); // Tenant header - easy to change to path param or URI later
         }).bodyValue("clientId=testClient").exchange().expectStatus().isEqualTo(HttpStatus.OK);
 
     }
@@ -381,6 +388,10 @@ class AuthorizationControllerTest {
             TenantConfigurationService mockService = Mockito.mock(TenantConfigurationService.class);
             // Mock the TenantConfigurationService to return our mock TenantProperties
             when(mockService.getTenantProperties(ECSP)).thenReturn(mockTenantProperties);
+            when(mockService.getTenantProperties("testClient")).thenReturn(mockTenantProperties);
+            // Mock tenant existence checks
+            when(mockService.tenantExists(ECSP)).thenReturn(true);
+            when(mockService.tenantExists("testClient")).thenReturn(true);
 
             return mockService;
         }

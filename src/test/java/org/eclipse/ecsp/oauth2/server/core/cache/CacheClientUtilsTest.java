@@ -19,6 +19,8 @@
 package org.eclipse.ecsp.oauth2.server.core.cache;
 
 import org.eclipse.ecsp.oauth2.server.core.cache.impl.CacheClientServiceImpl;
+import org.eclipse.ecsp.oauth2.server.core.config.TenantContext;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockitoAnnotations;
@@ -46,11 +48,22 @@ class CacheClientUtilsTest {
 
     /**
      * This method sets up the test environment before each test.
-     * It initializes the mocks.
+     * It initializes the mocks and sets up tenant context.
      */
     @BeforeEach
     void setup() {
         MockitoAnnotations.openMocks(this);
+        // Set up tenant context for multi-tenancy tests
+        TenantContext.setCurrentTenant("uidam");
+    }
+
+    /**
+     * Clean up tenant context after each test.
+     */
+    @AfterEach
+    void tearDown() {
+        // Clean up tenant context after each test
+        TenantContext.clear();
     }
 
     /**
@@ -60,7 +73,8 @@ class CacheClientUtilsTest {
      */
     @Test
     void getClientDetails() {
-        doReturn(new ClientCacheDetails()).when(cacheClientService).getClientDetailsWithoutSync(anyString());
+        doReturn(new ClientCacheDetails()).when(cacheClientService).getClientDetailsWithoutSync(anyString(),
+                anyString());
         ClientCacheDetails clientCacheDetails = cacheClientUtils.getClientDetails("token-mgmt");
         assertNotNull(clientCacheDetails);
     }

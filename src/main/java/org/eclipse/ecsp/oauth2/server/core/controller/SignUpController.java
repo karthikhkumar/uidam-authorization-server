@@ -27,6 +27,7 @@ import org.eclipse.ecsp.oauth2.server.core.request.dto.UserDto;
 import org.eclipse.ecsp.oauth2.server.core.response.UserDetailsResponse;
 import org.eclipse.ecsp.oauth2.server.core.service.PasswordPolicyService;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
+import org.eclipse.ecsp.oauth2.server.core.utils.UiAttributeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -35,6 +36,7 @@ import org.springframework.ui.Model;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.ModelAndView;
@@ -64,7 +66,7 @@ import static org.eclipse.ecsp.oauth2.server.core.utils.CommonMethodsUtils.obtai
  * Controller class for handling self user sign-up operations.
  */
 @Controller
-@RequestMapping
+@RequestMapping("/{tenantId}")
 public class SignUpController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(SignUpController.class);
@@ -75,16 +77,20 @@ public class SignUpController {
 
     private TenantConfigurationService tenantConfigurationService;
 
+    private UiAttributeUtils uiAttributeUtils;
+
     /**
      * Constructor for SelfUserController.
      *
      * @param tenantConfigurationService the service to get tenant properties
      */
     public SignUpController(UserManagementClient userManagementClient,
-            TenantConfigurationService tenantConfigurationService, PasswordPolicyService passwordPolicyService) {
+            TenantConfigurationService tenantConfigurationService, PasswordPolicyService passwordPolicyService,
+            UiAttributeUtils uiAttributeUtils) {
         this.userManagementClient = userManagementClient;
         this.tenantConfigurationService = tenantConfigurationService;
         this.passwordPolicyService = passwordPolicyService;
+        this.uiAttributeUtils = uiAttributeUtils;
     }
 
     /**
@@ -94,9 +100,11 @@ public class SignUpController {
      * @return the name of the sign-up view
      */
     @GetMapping(SLASH + SELF_SIGN_UP)
-    public String selfSignUpInit(Model model) {
+    public String selfSignUpInit(@PathVariable("tenantId") String tenantId, Model model) {
         TenantProperties tenantProperties = tenantConfigurationService.getTenantProperties();
         model.addAttribute(IS_SIGN_UP_ENABLED, tenantProperties.isSignUpEnabled());
+        model.addAttribute("issuer", tenantId);
+        uiAttributeUtils.addUiAttributes(model, tenantId);
         if (tenantProperties.isSignUpEnabled()) {
             setupCaptcha(model);
             passwordPolicyService.setupPasswordPolicy(model, false);
@@ -124,7 +132,8 @@ public class SignUpController {
      */
 
     @GetMapping(SLASH + USER_CREATED)
-    public String userCreated(Model model) {
+    public String userCreated(@PathVariable("tenantId") String tenantId, Model model) {
+        uiAttributeUtils.addUiAttributes(model, tenantId);
         return USER_CREATED;
     }
 
@@ -134,7 +143,8 @@ public class SignUpController {
      * @return the name of the user-created UI view
      */
     @GetMapping(SLASH + TERMS_OF_USE)
-    public String getTermsOfUsePage(Model model) {
+    public String getTermsOfUsePage(@PathVariable("tenantId") String tenantId, Model model) {
+        uiAttributeUtils.addUiAttributes(model, tenantId);
         return TERMS_OF_USE;
     }
 
@@ -144,7 +154,8 @@ public class SignUpController {
      * @return the name of the user-created UI view
      */
     @GetMapping(SLASH + PRIVACY_AGREEMENT)
-    public String getPrivacyAgreementPage(Model model) {
+    public String getPrivacyAgreementPage(@PathVariable("tenantId") String tenantId, Model model) {
+        uiAttributeUtils.addUiAttributes(model, tenantId);
         return PRIVACY_AGREEMENT;
     }
 
@@ -158,14 +169,16 @@ public class SignUpController {
      * @return a ModelAndView object to redirect to the appropriate view
      */
     @PostMapping(value = SLASH + SELF_SIGN_UP, consumes = {MediaType.APPLICATION_FORM_URLENCODED_VALUE})
-    public ModelAndView addSelfUser(@ModelAttribute @Valid UserDto userDto, HttpServletRequest request,
+    public ModelAndView addSelfUser(@PathVariable("tenantId") String tenantId,
+                                    @ModelAttribute @Valid UserDto userDto,
+                                    HttpServletRequest request,
                                     RedirectAttributes redirectAttributes) {
         LOGGER.info("## addSelfUser - START");
         boolean reqParametersPresent = checkForReqParameters(userDto, obtainRecaptchaResponse(request));
         if (!reqParametersPresent) {
             LOGGER.error("Required parameters are missing");
             redirectAttributes.addFlashAttribute(ERROR_LITERAL, ADD_REQ_PAR);
-            return new ModelAndView(REDIRECT_LITERAL + SELF_SIGN_UP);
+            return new ModelAndView(REDIRECT_LITERAL + tenantId + "/" + SELF_SIGN_UP);
         }
         LOGGER.debug("Adding self user with username: {}", userDto.getFirstName());
         TenantProperties tenantProperties = tenantConfigurationService.getTenantProperties();
@@ -175,7 +188,7 @@ public class SignUpController {
                 if (userDetailsResponse == null) {
                     LOGGER.error(FAILED_TO_CREATE_USER_WITH_USERNAME, userDto.getUserName());
                     redirectAttributes.addFlashAttribute(ERROR_LITERAL, UNEXPECTED_ERROR);
-                    return new ModelAndView(REDIRECT_LITERAL + SELF_SIGN_UP);
+                    return new ModelAndView(REDIRECT_LITERAL + tenantId + "/" + SELF_SIGN_UP);
                 } else {
                     LOGGER.info("User created successfully with username: {}", userDto.getUserName());
                     if (!userDetailsResponse.isVerificationEmailSent()) {
@@ -190,17 +203,17 @@ public class SignUpController {
                                         +
                                         EMAIL_SENT_SUFFIX);
                     }
-                    return new ModelAndView(REDIRECT_LITERAL + USER_CREATED);
+                    return new ModelAndView(REDIRECT_LITERAL  + tenantId + "/" + USER_CREATED);
                 }
             } catch (Exception e) {
                 LOGGER.error(FAILED_TO_CREATE_USER_WITH_USERNAME, userDto.getEmail());
                 redirectAttributes.addFlashAttribute(ERROR_LITERAL, e.getMessage());
-                return new ModelAndView(REDIRECT_LITERAL + SELF_SIGN_UP);
+                return new ModelAndView(REDIRECT_LITERAL  + tenantId + "/" + SELF_SIGN_UP);
             }
         } else {
             LOGGER.debug(SIGN_UP_NOT_ENABLED);
             redirectAttributes.addFlashAttribute(MSG_LITERAL, SIGN_UP_NOT_ENABLED);
-            return new ModelAndView(REDIRECT_LITERAL + SELF_SIGN_UP);
+            return new ModelAndView(REDIRECT_LITERAL  + tenantId + "/" + SELF_SIGN_UP);
         }
     }
 

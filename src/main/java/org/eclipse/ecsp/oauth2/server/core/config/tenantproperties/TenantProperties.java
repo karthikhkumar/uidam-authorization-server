@@ -51,6 +51,7 @@ public class TenantProperties {
     private HashMap<String, String> keyStore;
     private HashMap<String, String> cert;
     private CaptchaProperties captcha;
+    private UiProperties ui;
     
     
     // Legacy External IDP List (for backward compatibility and direct property binding)

@@ -25,6 +25,7 @@ import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.CaptchaProper
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
 import org.eclipse.ecsp.oauth2.server.core.service.LoginService;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
+import org.eclipse.ecsp.oauth2.server.core.utils.UiAttributeUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,7 +40,6 @@ import org.springframework.web.servlet.View;
 import java.util.Collections;
 import java.util.Map;
 
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
@@ -58,6 +58,9 @@ class LoginControllerTest {
 
     @Mock
     private LoginService loginService;
+
+    @Mock
+    private UiAttributeUtils uiAttributeUtils;
 
     @InjectMocks
     private LoginController loginController;
@@ -134,7 +137,7 @@ class LoginControllerTest {
         when(loginService.isCaptchaEnabledForUserInterface()).thenReturn(false);
 
         this.mockMvc
-            .perform(get("/login"))
+            .perform(get("/ecsp/login"))
             .andExpect(status().isOk())
             .andExpect(view().name("login"))
             .andExpect(model().attributeExists("isAccountFieldEnabled"))
@@ -165,7 +168,7 @@ class LoginControllerTest {
         when(loginService.isAutoRedirectionEnabled()).thenReturn(true);
 
         this.mockMvc
-            .perform(get("/login"))
+            .perform(get("/demo/login"))
             .andExpect(status().isOk())
             .andExpect(view().name("login"))
             .andExpect(model().attribute("isExternalIdpEnabled", true))

@@ -36,6 +36,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_EXTERNAL_URLS_CLIENT_BY_CLIENT_ID_ENDPOINT;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_EXTERNAL_URLS_USER_MANAGEMENT_ENV;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.TENANT_ID_HEADER;
 import static org.eclipse.ecsp.oauth2.server.core.utils.RequestResponseLogger.logRequest;
 import static org.eclipse.ecsp.oauth2.server.core.utils.RequestResponseLogger.logResponse;
 
@@ -130,6 +131,7 @@ public class AuthManagementClient {
             
             RegisteredClientDetails response = webClient.get()
                 .uri(uri, clientId)
+                .header(TENANT_ID_HEADER, tenantProperties.getTenantId())
                 .accept(MediaType.APPLICATION_JSON).retrieve()
                 .bodyToMono(RegisteredClientDetails.class).block();
 

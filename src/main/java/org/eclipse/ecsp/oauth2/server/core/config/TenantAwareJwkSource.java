@@ -31,10 +31,6 @@ import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.cert.CertificateException;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -89,7 +85,7 @@ public class TenantAwareJwkSource implements JWKSource<SecurityContext> {
             if (tenantId == null) {
                 tenantId = "default";
             }
-            
+            LOGGER.info("JWKSelector cache Key tenantId : {}", tenantId);
             // Get or create JWK set for this tenant
             JWKSet jwkSet = tenantJwkCache.computeIfAbsent(tenantId, k -> createJwkSetForTenant(tenantProperties));
             
@@ -111,7 +107,7 @@ public class TenantAwareJwkSource implements JWKSource<SecurityContext> {
     private JWKSet createJwkSetForTenant(TenantProperties tenantProperties) {
         try {
             LOGGER.debug("Creating JWK set for tenant: {}", tenantProperties.getTenantName());
-            
+
             RSAKey rsaKey;
             if (BooleanUtils.isTrue(tenantProperties.getJksEnabled())) {
                 LOGGER.debug("Using Java KeyStore configuration for tenant: {}", tenantProperties.getTenantName());
@@ -120,11 +116,10 @@ public class TenantAwareJwkSource implements JWKSource<SecurityContext> {
                 LOGGER.debug("Using Public/Private Key configuration for tenant: {}", tenantProperties.getTenantName());
                 rsaKey = keyStoreConfigByPubPvtKey.generateRsaKey();
             }
-            
+
             return new JWKSet(rsaKey);
-            
-        } catch (CertificateException | KeyStoreException | NoSuchAlgorithmException | IOException
-                | KeyGenerationException e) {
+
+        } catch (KeyGenerationException e) {
             LOGGER.error("Failed to create JWK set for tenant: {}", tenantProperties.getTenantName(), e);
             throw new RuntimeException("Failed to create JWK set for tenant: " + tenantProperties.getTenantName(), e);
         }

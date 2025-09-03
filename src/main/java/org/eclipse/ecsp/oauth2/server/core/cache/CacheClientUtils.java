@@ -19,6 +19,7 @@
 package org.eclipse.ecsp.oauth2.server.core.cache;
 
 import org.apache.commons.lang3.StringUtils;
+import org.eclipse.ecsp.oauth2.server.core.util.SessionTenantResolver;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -39,15 +40,17 @@ public class CacheClientUtils {
      * Retrieves client details based on the provided client ID.
      * If caching is enabled for all clients, it fetches the details with synchronization.
      * Otherwise, it fetches the details without synchronization.
+     * The current tenant is automatically resolved and included in the cache key.
      *
      * @param clientId the ID of the client to retrieve details for
      * @return the client cache details
      */
     public ClientCacheDetails getClientDetails(String clientId) {
+        String tenantId = SessionTenantResolver.getCurrentTenant();
         if (StringUtils.isNotEmpty(cacheClientIds) && (cacheClientIds.equalsIgnoreCase("ALL"))) {
-            return cacheClientService.getClientDetailsWithSync(clientId);
+            return cacheClientService.getClientDetailsWithSync(clientId, tenantId);
         } else {
-            return cacheClientService.getClientDetailsWithoutSync(clientId);
+            return cacheClientService.getClientDetailsWithoutSync(clientId, tenantId);
         }
     }
 

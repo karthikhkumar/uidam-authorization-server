@@ -47,6 +47,7 @@ import org.springframework.security.oauth2.server.authorization.token.OAuth2Toke
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 
+
 /**
  * The AuthorizationServerConfig class is a configuration class that manages authorization server configurations. This
  * class has been refactored to support multiple tenants by using dynamic tenant property resolution.
@@ -146,16 +147,6 @@ public class AuthorizationServerConfig {
         return OAuth2AuthorizationServerConfiguration.jwtDecoder(jwkSource);
     }
 
-    /**
-     * This method creates an AuthorizationServerSettings instance. AuthorizationServerSettings is a settings class for
-     * the authorization server. It includes configurations for the issuer URL.
-     *
-     * @return AuthorizationServerSettings instance with the issuer URL set.
-     */
-    @Bean
-    public AuthorizationServerSettings authorizationServerSettings() {
-        return AuthorizationServerSettings.builder().issuer(buildIssuerBaseUrl()).build();
-    }
 
     /**
      * This method creates an OAuth2TokenCustomizer instance for JwtEncodingContext. OAuth2TokenCustomizer is an
@@ -182,7 +173,28 @@ public class AuthorizationServerConfig {
 
         return issuerProtocol + "://" + issuerHost + issuerPrefix;
     }
+    
+    /**
+     * This method creates an AuthorizationServerSettings instance.
+     * AuthorizationServerSettings is a settings class for the authorization server.
+     * It includes configurations for the issuer URL.
+     *
+     * @return AuthorizationServerSettings instance with the endpoint set set.
+     */
+    @Bean
+    public AuthorizationServerSettings authorizationServerSettings() {
+        return AuthorizationServerSettings.builder()
+                .authorizationEndpoint("/oauth2/authorize")
+                .tokenEndpoint("/oauth2/token")
+                .jwkSetEndpoint("/oauth2/jwks")
+                .oidcUserInfoEndpoint("/userinfo")
+                .tokenRevocationEndpoint("/oauth2/revoke")
+                .tokenIntrospectionEndpoint("/oauth2/introspect")
+                .multipleIssuersAllowed(true)
+                .build();
 
+    }
+    
     /**
      * This method creates an instance of PasswordEncoder.
      *

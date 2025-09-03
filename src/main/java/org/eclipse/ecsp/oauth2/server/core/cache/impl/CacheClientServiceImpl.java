@@ -66,16 +66,17 @@ public class CacheClientServiceImpl implements CacheClientService {
      * This method is cached using the specified cache value and key.
      *
      * @param clientId the ID of the client to retrieve details for
+     * @param tenantId the ID of the tenant
      * @return the client cache details
      */
     @Cacheable(value = CLIENT_CACHE_VALUE, key = CLIENT_CACHE_KEY, sync = true)
     @Override
-    public ClientCacheDetails getClientDetailsWithSync(String clientId) {
+    public ClientCacheDetails getClientDetailsWithSync(String clientId, String tenantId) {
         ClientCacheDetails clientCacheDetails = getClientDetailsFromAuthMgmt(clientId);
         if (clientCacheDetails == null) {
             return null;
         }
-        LOGGER.info("Putting client details in cache for client id: {}", clientId);
+        LOGGER.info("Putting client details in cache for client id: {} and tenant: {}", clientId, tenantId);
         return clientCacheDetails;
     }
 
@@ -84,11 +85,12 @@ public class CacheClientServiceImpl implements CacheClientService {
      * This method is cached using the specified cache value and key, unless the condition is met.
      *
      * @param clientId the ID of the client to retrieve details for
+     * @param tenantId the ID of the tenant
      * @return the client cache details
      */
     @Cacheable(value = CLIENT_CACHE_VALUE, key = CLIENT_CACHE_KEY, unless = CLIENT_CACHE_UNLESS)
     @Override
-    public ClientCacheDetails getClientDetailsWithoutSync(String clientId) {
+    public ClientCacheDetails getClientDetailsWithoutSync(String clientId, String tenantId) {
         ClientCacheDetails clientCacheDetails = getClientDetailsFromAuthMgmt(clientId);
         if (clientCacheDetails == null) {
             return null;
@@ -96,7 +98,7 @@ public class CacheClientServiceImpl implements CacheClientService {
         boolean cache = isCacheRequired(clientId, clientCacheDetails.getRegisteredClient());
         clientCacheDetails.setCache(cache);
         if (cache) {
-            LOGGER.info("Putting client details in cache for client id: {}", clientId);
+            LOGGER.info("Putting client details in cache for client id: {} and tenant: {}", clientId, tenantId);
         }
         return clientCacheDetails;
     }

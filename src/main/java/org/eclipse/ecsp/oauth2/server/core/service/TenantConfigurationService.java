@@ -18,12 +18,16 @@
 
 package org.eclipse.ecsp.oauth2.server.core.service;
 
-import org.eclipse.ecsp.oauth2.server.core.config.TenantContext;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.MultiTenantProperties;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
+import org.eclipse.ecsp.oauth2.server.core.util.SessionTenantResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
+import java.util.Collections;
+import java.util.List;
 
 /**
  * This service class is used to manage tenant configurations.
@@ -35,6 +39,9 @@ public class TenantConfigurationService {
     private static final Logger LOGGER = LoggerFactory.getLogger(TenantConfigurationService.class);
     
     private final MultiTenantProperties multiTenantProperties;
+
+    @Value("#{'${tenant.ids}'.split(',')}")
+    private List<String> tenantIds;
 
     /**
      * Constructor for TenantConfigurationService.
@@ -77,12 +84,13 @@ public class TenantConfigurationService {
     
     /**
      * This method retrieves the tenant properties for the current tenant.
-     * It uses the TenantContext to get the current tenant ID and returns the corresponding tenant properties.
+     * It uses SessionTenantResolver for better multi-threaded tenant resolution
+     * in OAuth2 flows where different threads handle the same user session.
      *
      * @return the tenant properties for the current tenant
      */
     public TenantProperties getTenantProperties() {
-        String currentTenant = TenantContext.getCurrentTenant();
+        String currentTenant = SessionTenantResolver.getCurrentTenant();
         LOGGER.debug("Getting properties for current tenant: {}", currentTenant);
         return getTenantProperties(currentTenant);
     }
@@ -99,7 +107,7 @@ public class TenantConfigurationService {
             LOGGER.error("Multi-tenant properties not loaded - cannot check if tenant exists: {}", tenantId);
             return false;
         }
-        return multiTenantProperties.getTenants().containsKey(tenantId);
+        return tenantIds.contains(tenantId) && multiTenantProperties.getTenants().containsKey(tenantId);
     }
 
     /**
@@ -118,5 +126,20 @@ public class TenantConfigurationService {
      */
     public String getDefaultTenantId() {
         return multiTenantProperties.getDefaultTenantId();
+    }
+    
+
+    /**
+     * Get all available tenant IDs.
+     *
+     * @return a set of all configured tenant IDs, or empty set if no tenants are configured
+     */
+    public java.util.Set<String> getAllTenants() {
+        // Add null safety check
+        if (multiTenantProperties.getTenants() == null) {
+            LOGGER.error("Multi-tenant properties not loaded - cannot retrieve tenant list");
+            return Collections.emptySet();
+        }
+        return multiTenantProperties.getAvailableTenants();
     }
 }

@@ -61,6 +61,7 @@ public class IgniteOauth2CoreConstants {
     public static final String REFRESH_TOKEN_GRANT_TYPE = "refresh_token";
     public static final String DATE_FORMAT = "y-M-d'T'H:m:sX";
     public static final String ACCOUNT_NAME_HEADER = "accountName";
+    public static final String TENANT_ID_HEADER = "tenantId";
     public static final String SPRING_SECURITY_FORM_ACCOUNT_NAME_KEY = "account_name";
 
     public static final String SPRING_SECURITY_FORM_RECAPTCHA_RESPONSE_KEY = "g-recaptcha-response";
@@ -98,12 +99,13 @@ public class IgniteOauth2CoreConstants {
 
     public static final String RECAPTCHA_URL_TEMPLATE = "?secret=%s&response=%s&remoteip=%s";
     public static final int ITERATION_COUNT = 65536;
-    public static final String LOGIN_FAILURE_HANDLER = "/login?error";
+    public static final String LOGIN_FAILURE_HANDLER = "/login?error=true";
     public static final String LOGIN_HANDLER = "/login";
     public static final String LOGOUT_HANDLER = "/oauth2/logout";
-    public static final String LOGOUT_MATCHER_PATTERN = "/oauth2/logout/**";
-    public static final String LOGIN_MATCHER_PATTERN = "/login/**";
-    public static final String REQUEST_MATCHER_PATTERN = "/oauth2/**";
+    public static final String LOGOUT_MATCHER_PATTERN = "/*/oauth2/logout/**";
+    public static final String LOGIN_MATCHER_PATTERN = "/*/login/**";
+    public static final String DEFAULT_LOGIN_MATCHER_PATTERN = "/login/**";
+    public static final String REQUEST_MATCHER_PATTERN = "/*/oauth2/**";
     public static final int INITIAL_ODD_NUMBER = 17;
     public static final int MULTIPLIER_ODD_NUMBER = 37;
     
@@ -153,12 +155,18 @@ public class IgniteOauth2CoreConstants {
     public static final String ERROR_WHILE_BUILDING_REDIRECT_URI = "Error while building redirect URI: ";
 
     public static final String CLIENT_CACHE_VALUE = "client";
-    public static final String CLIENT_CACHE_KEY = "#clientId";
+    public static final String CLIENT_CACHE_KEY = "#tenantId + ':' + #clientId";
     public static final String CLIENT_CACHE_UNLESS = "#result == null || #result.cache == false";
 
     public static final String ID_PREFIX = "{";
     public static final String ID_SUFFIX = "}";
     public static final String NOOP_ID_ENCODE = "noop";
     public static final String BCRYPT_ID_ENCODE = "bcrypt";
+    
+    public static final String ISSUER_PARAM_NAME = "issuer";
+
+    // UI Configuration constants
+    public static final String TENANT_LOGO_PATH = "tenantLogoPath";
+    public static final String TENANT_STYLESHEET_PATH = "tenantStylesheetPath";
 
 }

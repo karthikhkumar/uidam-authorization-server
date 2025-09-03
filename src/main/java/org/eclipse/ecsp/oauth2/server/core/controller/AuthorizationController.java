@@ -27,6 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -38,7 +39,7 @@ import org.springframework.web.bind.annotation.RestController;
  * It exposes the /revoke/revokeByAdmin endpoint for this purpose.
  */
 @RestController
-@RequestMapping(value = "revoke/revokeByAdmin")
+@RequestMapping("/{tenantId}/revoke/revokeByAdmin")
 public class AuthorizationController {
     private static final Logger LOGGER = LoggerFactory.getLogger(AuthorizationController.class);
     @Autowired
@@ -51,12 +52,14 @@ public class AuthorizationController {
      * It calls the revokeToken method of the IgniteOauth2AuthorizationService.
      * It then builds a response and returns it.
      *
+     * @param tenantId The tenant ID.
      * @param authorization The authorization token.
      * @param revokeTokenRequest The request body containing the clientId or username.
      * @return A ResponseEntity object containing a BaseResponse with the response message.
      */
     @PostMapping(consumes = { MediaType.APPLICATION_FORM_URLENCODED_VALUE })
-    public ResponseEntity<BaseResponse> revokeToken(@RequestHeader(value = "Authorization",
+    public ResponseEntity<BaseResponse> revokeToken(@PathVariable("tenantId") String tenantId,
+                                                   @RequestHeader(value = "Authorization",
         required = true) String authorization, RevokeTokenRequest revokeTokenRequest) {
         LOGGER.info("Revoke token request for clientId: {} or username: {}",
                 revokeTokenRequest.getClientId(), revokeTokenRequest.getUsername());

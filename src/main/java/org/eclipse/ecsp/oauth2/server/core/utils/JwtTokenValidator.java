@@ -25,6 +25,7 @@ import io.jsonwebtoken.MalformedJwtException;
 import io.jsonwebtoken.UnsupportedJwtException;
 import org.eclipse.ecsp.oauth2.server.core.common.CustomOauth2TokenGenErrorCodes;
 import org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants;
+import org.eclipse.ecsp.oauth2.server.core.config.TenantAwareKeyStoreFactory;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
 import org.eclipse.ecsp.oauth2.server.core.exception.CustomOauth2AuthorizationException;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
@@ -54,6 +55,7 @@ public class JwtTokenValidator {
 
     private final TenantConfigurationService tenantConfigurationService;
     private static final String LOCAL_FILE_PATH_IDENTIFIER = "/";
+    private final TenantAwareKeyStoreFactory keyStoreFactory;
 
     /**
      * Constructor for JwtTokenValidator.
@@ -61,8 +63,10 @@ public class JwtTokenValidator {
      *
      * @param tenantConfigurationService the service to retrieve tenant properties
      */
-    public JwtTokenValidator(TenantConfigurationService tenantConfigurationService) {
+    public JwtTokenValidator(TenantConfigurationService tenantConfigurationService, 
+            TenantAwareKeyStoreFactory keyStoreFactory) {
         this.tenantConfigurationService = tenantConfigurationService;
+        this.keyStoreFactory = keyStoreFactory;
         LOGGER.debug("JwtTokenValidator initialized with TenantConfigurationService");
     }
 
@@ -72,6 +76,7 @@ public class JwtTokenValidator {
      * @return the public key for JWT verification
      * @throws Exception if an error occurs while loading the public key
      */
+    @Deprecated(since = "Release 1.8")
     private PublicKey getCurrentTenantPublicKey() throws Exception {
         TenantProperties tenantProperties = tenantConfigurationService.getTenantProperties();
         if (tenantProperties == null) {
@@ -113,7 +118,7 @@ public class JwtTokenValidator {
     private Claims getClaimsFromToken(String token) {
         LOGGER.debug("## getClaimsFromToken - START");
         try {
-            PublicKey publicKey = getCurrentTenantPublicKey();
+            PublicKey publicKey = keyStoreFactory.getCurrentTenantPublicKey();
             return Jwts.parser()
                     .verifyWith(publicKey)
                     .build()

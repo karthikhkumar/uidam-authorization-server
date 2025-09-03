@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+<!DOCTPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Logout Successful</title>
-    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" th:href="@{tenantStylesheetPath != null ? ${tenantStylesheetPath} : '/css/style.css'}">
 </head>
 <body>    <div class="home-container">
         <div class="success-title">LOGOUT SUCCESSFUL!</div>

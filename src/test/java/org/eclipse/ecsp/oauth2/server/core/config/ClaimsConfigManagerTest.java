@@ -633,7 +633,7 @@ class ClaimsConfigManagerTest {
         OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(oauth2User, null, REGISTRATION_ID_GOOGLE);
 
         doReturn(getUser()).when(userManagementClient)
-                .getUserDetailsByUsername(REGISTRATION_ID_GOOGLE + "_" + TEST_USER_NAME, null);
+                .getUserDetailsByUsername("google" + "_" + TEST_USER_NAME, null);
 
         // Execute & Verify
         assertDoesNotThrow(() -> jwtCustomizer.customize(createTestContext(token)));
@@ -653,11 +653,11 @@ class ClaimsConfigManagerTest {
                 new OAuth2Error(CustomOauth2TokenGenErrorCodes.USER_NOT_FOUND.name()));
 
         doThrow(userNotFound).doReturn(getUser()).when(userManagementClient)
-                .getUserDetailsByUsername(REGISTRATION_ID_GOOGLE + "_" + TEST_USER_NAME, null);
+                .getUserDetailsByUsername("google" + "_" + TEST_USER_NAME, null);
 
-        doReturn(true).when(claimMappingService).validateClaimCondition(eq(REGISTRATION_ID_GOOGLE), any());
+        doReturn(true).when(claimMappingService).validateClaimCondition(eq("google"), any());
 
-        doReturn(new FederatedUserDto()).when(claimMappingService).mapClaimsToUserRequest(eq(REGISTRATION_ID_GOOGLE),
+        doReturn(new FederatedUserDto()).when(claimMappingService).mapClaimsToUserRequest(eq("google"),
                 any(), any());
         OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(oauth2User, null, REGISTRATION_ID_GOOGLE);
         doReturn(getUser()).when(userManagementClient).createFedratedUser(any());
@@ -681,16 +681,16 @@ class ClaimsConfigManagerTest {
                 new OAuth2Error(CustomOauth2TokenGenErrorCodes.USER_NOT_FOUND.name()));
 
         doThrow(userNotFound).when(userManagementClient)
-                .getUserDetailsByUsername(REGISTRATION_ID_GOOGLE + "_" + TEST_USER_NAME, null);
+                .getUserDetailsByUsername("google" + "_" + TEST_USER_NAME, null);
 
-        doReturn(false).when(claimMappingService).validateClaimCondition(eq(REGISTRATION_ID_GOOGLE), any());
+        doReturn(false).when(claimMappingService).validateClaimCondition(eq("google"), any());
 
         // Execute & Verify
         OAuth2AuthenticationException exception = assertThrows(OAuth2AuthenticationException.class,
                 () -> customizeToken(token));
 
         assertEquals("invalid_claim_validation", exception.getError().getErrorCode());
-        assertEquals("Claim validation failed for registrationId: " + REGISTRATION_ID_GOOGLE,
+        assertEquals("Claim validation failed for registrationId: google",
                 exception.getError().getDescription());
     }
 
@@ -698,19 +698,20 @@ class ClaimsConfigManagerTest {
     void getUserDetailsForFederatedUser_InvalidIdpConfiguration() {
         // Mock tenant properties
         doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
-        
-        // Setup
+
+        // Setup - use properly formatted registration ID with invalid provider
         Map<String, Object> attributes = new HashMap<>();
         attributes.put(ATTRIBUTE_SUB, TEST_USER_NAME);
         OAuth2User oauth2User = new DefaultOAuth2User(null, attributes, ATTRIBUTE_SUB);
-        OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(oauth2User, null, "invalid_idp");
+        OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(oauth2User, null, "demo-invalid_idp");
 
         // Execute & Verify
         OAuth2AuthenticationException exception = assertThrows(OAuth2AuthenticationException.class,
                 () -> customizeToken(token));
 
         assertEquals("invalid_idp_configuration", exception.getError().getErrorCode());
-        assertEquals("No external IDP configuration found for: invalid_idp", exception.getError().getDescription());
+        assertEquals("No external IDP configuration found for: demo-invalid_idp",
+                exception.getError().getDescription());
     }
 
     
@@ -719,8 +720,8 @@ class ClaimsConfigManagerTest {
         // Mock tenant properties
         doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
         
-        // Setup
-        String invalidRegistrationId = "invalid_registration_id";
+        // Setup - use properly formatted registration ID but with invalid provider that doesn't exist in tenant config
+        String invalidRegistrationId = "demo-invalidprovider";  // Valid format, but "invalidprovider" doesn't exist
         Map<String, Object> attributes = new HashMap<>();
         attributes.put(ATTRIBUTE_SUB, TEST_USER_NAME);
         OAuth2User oauth2User = new DefaultOAuth2User(null, attributes, ATTRIBUTE_SUB);
@@ -732,6 +733,26 @@ class ClaimsConfigManagerTest {
 
         assertEquals("invalid_idp_configuration", exception.getError().getErrorCode());
         assertEquals("No external IDP configuration found for: " + invalidRegistrationId, 
+                exception.getError().getDescription());
+    }
+
+    @Test
+    void getUserDetailsForFederatedUser_InvalidRegistrationFormat() {
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+
+        // Setup - use improperly formatted registration ID (missing tenant prefix)
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put(ATTRIBUTE_SUB, TEST_USER_NAME);
+        OAuth2User oauth2User = new DefaultOAuth2User(null, attributes, ATTRIBUTE_SUB);
+        OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(oauth2User, null, "google"); 
+
+        // Execute & Verify
+        OAuth2AuthenticationException exception = assertThrows(OAuth2AuthenticationException.class,
+                () -> customizeToken(token));
+
+        assertEquals("invalid_registration_format", exception.getError().getErrorCode());
+        assertEquals("Registration ID must be in format 'tenant-provider' but was: google",
                 exception.getError().getDescription());
     }
 
@@ -765,7 +786,7 @@ class ClaimsConfigManagerTest {
      */
     private TenantProperties createMockTenantProperties() {
         TenantProperties tenantProperties = new TenantProperties();
-        tenantProperties.setTenantId("789");
+        tenantProperties.setTenantId("demo");  // Updated to match registration ID format "demo-google"
         
         // Set up account properties
         AccountProperties accountProperties = new AccountProperties();
@@ -790,7 +811,7 @@ class ClaimsConfigManagerTest {
         
         ExternalIdpRegisteredClient googleClient = new ExternalIdpRegisteredClient();
         googleClient.setClientName("Google");
-        googleClient.setRegistrationId("google");
+        googleClient.setRegistrationId("google");  // Original provider ID, will be prefixed with tenant
         googleClient.setClientId("mock-google-client-id");
         googleClient.setClientSecret("mock-google-client-secret");
         googleClient.setClientAuthenticationMethod("client_secret_basic");

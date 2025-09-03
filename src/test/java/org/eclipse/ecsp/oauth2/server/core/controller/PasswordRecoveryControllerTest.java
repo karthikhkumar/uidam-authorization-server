@@ -27,6 +27,7 @@ import org.eclipse.ecsp.oauth2.server.core.exception.PasswordRecoveryException;
 import org.eclipse.ecsp.oauth2.server.core.service.PasswordPolicyService;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
 import org.eclipse.ecsp.oauth2.server.core.service.impl.CaptchaServiceImpl;
+import org.eclipse.ecsp.oauth2.server.core.utils.UiAttributeUtils;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -67,6 +68,9 @@ class PasswordRecoveryControllerTest {
 
     @Mock
     private PasswordPolicyService passwordPolicyService;
+
+    @Mock
+    private UiAttributeUtils uiAttributeUtils;
 
     @InjectMocks
     private PasswordRecoveryController passwordRecoveryController;
@@ -129,7 +133,7 @@ class PasswordRecoveryControllerTest {
         TenantProperties tenantProperties = createMockTenantProperties();
         when(tenantConfigurationService.getTenantProperties()).thenReturn(tenantProperties);
         
-        this.mockMvc.perform(get("/recovery"))
+        this.mockMvc.perform(get("/{tenantId}/recovery", "ecsp"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("recovery/forgot-password"))
                 .andExpect(model().attributeExists("isCaptchaFieldEnabled"))
@@ -152,7 +156,7 @@ class PasswordRecoveryControllerTest {
         
         when(tenantConfigurationService.getTenantProperties()).thenReturn(tenantProperties);
         
-        this.mockMvc.perform(get("/recovery"))
+        this.mockMvc.perform(get("/{tenantId}/recovery", "ecsp"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("recovery/forgot-password"))
                 .andExpect(model().attributeExists("isCaptchaFieldEnabled"))
@@ -165,7 +169,7 @@ class PasswordRecoveryControllerTest {
     @Test
     void testForgotPassword() throws Exception {
         this.mockMvc
-                .perform(post("/recovery/forgotPassword")
+                .perform(post("/{tenantId}/recovery/forgotPassword", "ecsp")
                         .param("username", "username")
                         .param("accountName", "ignite"))
                 .andExpect(status().isOk())
@@ -186,7 +190,7 @@ class PasswordRecoveryControllerTest {
                 .sendUserResetPasswordNotification("username", "ignite");
         
         this.mockMvc
-                .perform(post("/recovery/forgotPassword")
+                .perform(post("/{tenantId}/recovery/forgotPassword", "ecsp")
                         .param("username", "username")
                         .param("accountName", "ignite"))
                 .andExpect(status().isOk())
@@ -207,7 +211,7 @@ class PasswordRecoveryControllerTest {
                 .sendUserResetPasswordNotification("username", "ignite");
         
         this.mockMvc
-                .perform(post("/recovery/forgotPassword")
+                .perform(post("/ecsp/recovery/forgotPassword")
                         .param("username", "username")
                         .param("accountName", "ignite"))
                 .andExpect(status().isOk())
@@ -228,7 +232,7 @@ class PasswordRecoveryControllerTest {
         String nonce = "nonce";
         String encodedParams = Base64.getEncoder().encodeToString(("secret=" + secret + "&nonce=" + nonce).getBytes());
         
-        this.mockMvc.perform(get("/recovery/reset/" + encodedParams))
+        this.mockMvc.perform(get("/{tenantId}/recovery/reset/" + encodedParams, "ecsp"))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(view().name("recovery/change-password"))
@@ -246,7 +250,7 @@ class PasswordRecoveryControllerTest {
         String nonce = "nonce";
         String encodedParams = Base64.getEncoder().encodeToString(("secret=" + secret + "&nonce=" + nonce).getBytes());
         
-        this.mockMvc.perform(get("/recovery/reset/" + encodedParams))
+        this.mockMvc.perform(get("/{tenantId}/recovery/reset/" + encodedParams, "ecsp"))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(view().name("recovery/invalid-secret-provided"));
@@ -263,7 +267,7 @@ class PasswordRecoveryControllerTest {
         String nonce = "nonce";
         String encodedParams = Base64.getEncoder().encodeToString(("secret=" + secret + "&nonce=" + nonce).getBytes());
         
-        this.mockMvc.perform(get("/recovery/reset/" + encodedParams + "123"))
+        this.mockMvc.perform(get("/{tenantId}/recovery/reset/" + encodedParams + "123", "ecsp"))
                 .andDo(print())
                 .andExpect(status().isOk())
                 .andExpect(view().name("recovery/invalid-secret-provided"));
@@ -282,7 +286,7 @@ class PasswordRecoveryControllerTest {
                 .thenReturn("");
         
         this.mockMvc
-                .perform(post("/recovery/reset")
+                .perform(post("/ecsp/recovery/reset")
                         .param("password", "password")
                         .param("confirmPassword", "password")
                         .param("secret", "secret"))
@@ -303,7 +307,7 @@ class PasswordRecoveryControllerTest {
         // Password mismatch doesn't call userManagementClient, so no stubbing needed
         
         this.mockMvc
-                .perform(post("/recovery/reset")
+                .perform(post("/ecsp/recovery/reset")
                         .param("password", "password")
                         .param("confirmPassword", "ignite")
                         .param("secret", "secret"))
@@ -325,7 +329,7 @@ class PasswordRecoveryControllerTest {
                 .thenThrow(new RuntimeException("failed to process request"));
         
         this.mockMvc
-                .perform(post("/recovery/reset")
+                .perform(post("/ecsp/recovery/reset")
                         .param("password", "password")
                         .param("confirmPassword", "password")
                         .param("secret", "secret"))
@@ -341,7 +345,7 @@ class PasswordRecoveryControllerTest {
         // No tenant properties mocking needed as InvalidSecretException is thrown early
         
         this.mockMvc
-                .perform(post("/recovery/reset")
+                .perform(post("/ecsp/recovery/reset")
                         .param("password", "password")
                         .param("confirmPassword", "password")
                         .param("secret", ""))
@@ -357,7 +361,7 @@ class PasswordRecoveryControllerTest {
     void testPasswordForgotValidAccountName() throws Exception {
         
         this.mockMvc
-                .perform(post("/recovery/forgotPassword")
+                .perform(post("/ecsp/recovery/forgotPassword")
                         .param("username", "username")
                         .param("accountName", "validAccountName123"))
                 .andExpect(status().isOk())
@@ -375,7 +379,7 @@ class PasswordRecoveryControllerTest {
         // This will be wrapped in ServletException when caught by MockMvc
         Exception exception = org.junit.jupiter.api.Assertions.assertThrows(Exception.class, () -> {
             this.mockMvc
-                    .perform(post("/recovery/forgotPassword")
+                    .perform(post("/ecsp/recovery/forgotPassword")
                             .param("username", "username")
                             .param("accountName", "Invalid acc"));
         });
@@ -392,7 +396,7 @@ class PasswordRecoveryControllerTest {
     void testPasswordForgotEmptyAccountName() throws Exception {
         // No tenant properties mocking needed as validation may fail before tenant access
         
-        this.mockMvc.perform(post("/recovery/forgotPassword")
+        this.mockMvc.perform(post("/ecsp/recovery/forgotPassword")
                         .param("username", "username")
                         .param("accountName", ""))
                 .andExpect(status().isOk());

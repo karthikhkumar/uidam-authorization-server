@@ -22,6 +22,7 @@ import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.MultiTenantPr
 import org.eclipse.ecsp.oauth2.server.core.interceptor.CorrelationIdInterceptor;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -37,7 +38,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @EnableConfigurationProperties(MultiTenantProperties.class)
 @EnableScheduling
 @EnableRetry
-@SpringBootApplication(scanBasePackages = {"org.eclipse.ecsp"})
+@SpringBootApplication(scanBasePackages = {"org.eclipse.ecsp"}, exclude = {LiquibaseAutoConfiguration.class})
 public class AuthorizationServerApplication {
 
     protected AuthorizationServerApplication() {
