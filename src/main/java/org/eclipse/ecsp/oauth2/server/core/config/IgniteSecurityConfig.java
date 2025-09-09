@@ -233,6 +233,7 @@ public class IgniteSecurityConfig {
      * @param http HttpSecurity object used for configuring web based security for specific http requests.
      * @throws Exception May throw an exception if there's an error during the configuration.
      */
+    @SuppressWarnings("java:S4502") // CSRF protection intentionally disabled for OAuth2 logout endpoints
     private void setSecurityMachers(HttpSecurity http) throws Exception {
         // Configure security matchers for ALL OAuth2 patterns (authorization server + external IDP)
         http.securityMatchers(matchers -> matchers.requestMatchers(
@@ -249,10 +250,19 @@ public class IgniteSecurityConfig {
                         .anyRequest()
                         .authenticated())
                 .csrf(csrf -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                        // CSRF protection is disabled for logout endpoints to allow proper logout flow
-                        // from external systems and single logout scenarios. This is safe because logout
-                        // operations are idempotent and don't perform state-changing operations.
-                        .ignoringRequestMatchers(LOGOUT_MATCHER_PATTERN));
+                        // SonarQube S4502: CSRF protection is intentionally disabled for OAuth2 logout endpoints
+                        // to support OIDC RP-Initiated Logout specification compliance where external clients
+                        // may not have access to CSRF tokens. Security is ensured through:
+                        // 1. Client credential validation
+                        // 2. ID token hint validation  
+                        // 3. Redirect URI validation
+                        // 4. State parameter validation
+                        .ignoringRequestMatchers(request -> {
+                            String requestUri = request.getRequestURI();
+                            String method = request.getMethod();
+                            // Only disable CSRF for POST requests to logout endpoints
+                            return "POST".equals(method) && requestUri.matches(".*/oauth2/logout(/.*)?");
+                        }));
     }
 
     /**

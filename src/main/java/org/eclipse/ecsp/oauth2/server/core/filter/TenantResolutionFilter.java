@@ -150,7 +150,7 @@ public class TenantResolutionFilter implements Filter {
 
             // Validate that the resolved tenant actually exists in configuration
             if (!isValidConfiguredTenant(tenantId)) {
-                LOGGER.error("Tenant '{}' is not configured in the system for request: {}", tenantId, requestUri);
+                LOGGER.error("Tenant is not configured in the system for request: {}", requestUri);
                 throw TenantResolutionException.invalidTenant(tenantId, requestUri);
             }
             

@@ -72,6 +72,7 @@ public class LiquibaseConfig  {
     @Bean
     @Primary
     @ConditionalOnProperty(name = "spring.liquibase.enabled", havingValue = "true")
+    @SuppressWarnings("java:S2077") // SQL injection prevented by strict schema name validation
     // Bean creation will be skipped when spring.liquibase.enabled=false (e.g., in tests)
     public SpringLiquibase createSchemaForTenant() {
         SpringLiquibase liquibase = new SpringLiquibase();
@@ -88,13 +89,15 @@ public class LiquibaseConfig  {
             liquibase.setChangeLogParameters(liquibaseParams);
 
             // Validate schema name to prevent SQL injection
-            if (!defaultUidamSchema.matches("^[a-zA-Z0-9_]+$")) {
+            if (!defaultUidamSchema.matches("^\\w+$")) {
                 throw new IllegalArgumentException("Invalid schema name: " + defaultUidamSchema);
             }
 
             try (Connection conn = dataSource.getConnection();
                  Statement stmt = conn.createStatement()) {
                 // Create schema if it doesn't exist
+                // SonarQube S2077: SQL injection is prevented by schema name validation above
+                // The schema name is validated against a strict regex pattern [a-zA-Z0-9_]+
                 stmt.execute("CREATE SCHEMA IF NOT EXISTS " + defaultUidamSchema);
 
                 // Run Liquibase migration
@@ -104,12 +107,21 @@ public class LiquibaseConfig  {
                 MDC.remove(TENANT_HEADER);
                 TenantContext.clear();
             } catch (Exception e) {
-                throw new RuntimeException("Failed to initialize Liquibase : " + tenantId, e);
+                throw new LiquibaseInitializationException("Failed to initialize Liquibase for tenant: " + tenantId, e);
             } finally {
                 MDC.remove(TENANT_HEADER);
                 TenantContext.clear();
             }
         }
         return null;
+    }
+
+    /**
+     * Custom exception for Liquibase initialization failures.
+     */
+    public static class LiquibaseInitializationException extends RuntimeException {
+        public LiquibaseInitializationException(String message, Throwable cause) {
+            super(message, cause);
+        }
     }
 }
