@@ -97,4 +97,8 @@ public final class AuthorizationServerConstants {
     public static final String END_PUBLIC_KEY = "-----END PUBLIC KEY-----";
     public static final String SCOPE = "scope";
     public static final String CLIENT_ID = "client_id";
+
+    // Metrics
+    public static final String TENANT_ID_TAG = "tenant_id";
+
 }

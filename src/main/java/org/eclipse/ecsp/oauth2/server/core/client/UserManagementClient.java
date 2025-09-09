@@ -32,6 +32,8 @@ import org.eclipse.ecsp.oauth2.server.core.exception.PasswordRecoveryException;
 import org.eclipse.ecsp.oauth2.server.core.exception.UidamApplicationException;
 import org.eclipse.ecsp.oauth2.server.core.exception.UserNotFoundException;
 import org.eclipse.ecsp.oauth2.server.core.interceptor.ClientAddCorrelationIdInterceptor;
+import org.eclipse.ecsp.oauth2.server.core.metrics.AuthorizationMetricsService;
+import org.eclipse.ecsp.oauth2.server.core.metrics.MetricType;
 import org.eclipse.ecsp.oauth2.server.core.request.dto.BaseUserDto;
 import org.eclipse.ecsp.oauth2.server.core.request.dto.FederatedUserDto;
 import org.eclipse.ecsp.oauth2.server.core.request.dto.UserDto;
@@ -94,6 +96,7 @@ public class UserManagementClient {
     private final TenantConfigurationService tenantConfigurationService;
     private final CaptchaServiceImpl captchaServiceImpl;
     private final WebClient webClient;
+    private final AuthorizationMetricsService metricsService;
 
     /**
      * Constructor for UserManagementClient. It initializes the tenant configuration service for dynamic tenant
@@ -104,9 +107,11 @@ public class UserManagementClient {
      */
     @Autowired
     public UserManagementClient(TenantConfigurationService tenantConfigurationService,
-            CaptchaServiceImpl captchaServiceImpl) {
+            CaptchaServiceImpl captchaServiceImpl,
+            AuthorizationMetricsService metricsService) {
         this.tenantConfigurationService = tenantConfigurationService;
         this.captchaServiceImpl = captchaServiceImpl;
+        this.metricsService = metricsService;
         this.webClient = null; // Will use dynamic WebClient creation
     }
 
@@ -118,10 +123,12 @@ public class UserManagementClient {
      * @param webClient the WebClient to use for HTTP requests
      */
     public UserManagementClient(TenantConfigurationService tenantConfigurationService,
-            CaptchaServiceImpl captchaServiceImpl, WebClient webClient) {
+            CaptchaServiceImpl captchaServiceImpl, WebClient webClient,
+            AuthorizationMetricsService metricsService) {
         this.tenantConfigurationService = tenantConfigurationService;
         this.captchaServiceImpl = captchaServiceImpl;
         this.webClient = webClient;
+        this.metricsService = metricsService;
     }
 
     /**
@@ -217,13 +224,17 @@ public class UserManagementClient {
             }
             String errorCode;
             String errorDesc = "";
+            TenantProperties tenantProperties = getCurrentTenantProperties();
+            String tenantId = tenantProperties.getTenantId();
             if (userErrorResponse != null) {
                 if (HttpStatus.NOT_FOUND == ex.getStatusCode()) {
                     errorCode = CustomOauth2TokenGenErrorCodes.USER_NOT_FOUND.name();
                     errorDesc = userErrorResponse.getMessage();
+                    metricsService.incrementMetricsForTenant(tenantId, MetricType.FAILURE_LOGIN_USER_NOT_FOUND);
                 } else if (HttpStatus.FORBIDDEN == ex.getStatusCode()) {
                     errorCode = CustomOauth2TokenGenErrorCodes.USER_NOT_ACTIVE.name();
                     errorDesc = CustomOauth2TokenGenErrorCodes.USER_NOT_ACTIVE.getDescription();
+                    metricsService.incrementMetricsForTenant(tenantId, MetricType.FAILURE_LOGIN_USER_BLOCKED);
                 } else {
                     errorCode = OAuth2ErrorCodes.SERVER_ERROR;
                     errorDesc = userErrorResponse.getMessage();
@@ -233,12 +244,16 @@ public class UserManagementClient {
                 errorCode = OAuth2ErrorCodes.SERVER_ERROR;
                 errorDesc = "Unable to validate " + OAuth2ParameterNames.USERNAME;
             }
+            metricsService.incrementMetricsForTenant(tenantId, MetricType.FAILURE_LOGIN_ATTEMPTS);
             OAuth2Error error = new OAuth2Error(errorCode, errorDesc, null);
             throw new OAuth2AuthenticationException(error);
         } catch (Exception ex) {
             LOGGER.error("error while fetching user details for username {} from user-mgmt, ex: {}", username, ex);
             OAuth2Error error = new OAuth2Error(OAuth2ErrorCodes.SERVER_ERROR,
                     "Unable to validate " + OAuth2ParameterNames.USERNAME, null);
+            TenantProperties tenantProperties = getCurrentTenantProperties();
+            String tenantId = tenantProperties.getTenantId();
+            metricsService.incrementMetricsForTenant(tenantId, MetricType.FAILURE_LOGIN_ATTEMPTS);
             throw new OAuth2AuthenticationException(error);
         }
     }

@@ -28,6 +28,7 @@ import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.AccountProper
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.UserProperties;
 import org.eclipse.ecsp.oauth2.server.core.exception.UserNotFoundException;
+import org.eclipse.ecsp.oauth2.server.core.metrics.AuthorizationMetricsService;
 import org.eclipse.ecsp.oauth2.server.core.request.dto.FederatedUserDto;
 import org.eclipse.ecsp.oauth2.server.core.request.dto.UserDto;
 import org.eclipse.ecsp.oauth2.server.core.request.dto.UserEvent;
@@ -115,6 +116,9 @@ class UserManagementClientTest {
     private CaptchaServiceImpl captchaService;
 
     @Mock
+    private AuthorizationMetricsService authorizationMetricsService;
+
+    @Mock
     private HttpServletRequest httpServletRequest;
 
     private AutoCloseable closeable;
@@ -134,7 +138,7 @@ class UserManagementClientTest {
         when(tenantConfigurationService.getTenantProperties("ecsp")).thenReturn(mockTenantProperties);
 
         // Create UserManagementClient with mocked WebClient for testing
-        userManagementClient = new UserManagementClient(tenantConfigurationService, captchaService, webClientMock);
+        userManagementClient = new UserManagementClient(tenantConfigurationService, captchaService, webClientMock, authorizationMetricsService);
     }
 
     private TenantProperties createMockTenantProperties() {

@@ -22,6 +22,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.eclipse.ecsp.oauth2.server.core.authentication.tokens.CustomUserPwdAuthenticationToken;
 import org.eclipse.ecsp.oauth2.server.core.exception.PatternMismatchException;
+import org.eclipse.ecsp.oauth2.server.core.metrics.AuthorizationMetricsService;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
 import org.eclipse.ecsp.oauth2.server.core.service.impl.CaptchaServiceImpl;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -54,11 +55,13 @@ public class CustomUserPwdAuthenticationFilter extends UsernamePasswordAuthentic
      *
      * @param authenticationManager The AuthenticationManager to be used for authenticating requests.
      * @param tenantConfigurationService The TenantConfigurationService to be used for configuring tenants.
+     * @param authorizationMetricsService The AuthorizationMetricsService to be used for metrics collection.
      */
     public CustomUserPwdAuthenticationFilter(AuthenticationManager authenticationManager,
-                                             TenantConfigurationService tenantConfigurationService) {
+                                             TenantConfigurationService tenantConfigurationService,
+                                             AuthorizationMetricsService authorizationMetricsService) {
         super(authenticationManager);
-        captchaServiceImpl = new CaptchaServiceImpl(tenantConfigurationService);
+        captchaServiceImpl = new CaptchaServiceImpl(tenantConfigurationService, authorizationMetricsService);
     }
 
     /**
