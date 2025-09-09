@@ -249,6 +249,9 @@ public class IgniteSecurityConfig {
                         .anyRequest()
                         .authenticated())
                 .csrf(csrf -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+                        // CSRF protection is disabled for logout endpoints to allow proper logout flow
+                        // from external systems and single logout scenarios. This is safe because logout
+                        // operations are idempotent and don't perform state-changing operations.
                         .ignoringRequestMatchers(LOGOUT_MATCHER_PATTERN));
     }
 

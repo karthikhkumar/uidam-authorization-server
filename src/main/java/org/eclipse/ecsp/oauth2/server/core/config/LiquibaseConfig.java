@@ -30,6 +30,8 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.datasource.lookup.AbstractRoutingDataSource;
 
 import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.Statement;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -83,13 +85,17 @@ public class LiquibaseConfig  {
             liquibase.setDefaultSchema(defaultUidamSchema);
             Map<String, String> liquibaseParams = new HashMap<>();
             liquibaseParams.put("schema", defaultUidamSchema);
-
             liquibase.setChangeLogParameters(liquibaseParams);
 
-            try {
+            // Validate schema name to prevent SQL injection
+            if (!defaultUidamSchema.matches("^[a-zA-Z0-9_]+$")) {
+                throw new IllegalArgumentException("Invalid schema name: " + defaultUidamSchema);
+            }
+
+            try (Connection conn = dataSource.getConnection();
+                 Statement stmt = conn.createStatement()) {
                 // Create schema if it doesn't exist
-                dataSource.getConnection().createStatement()
-                        .execute("CREATE SCHEMA IF NOT EXISTS " + defaultUidamSchema);
+                stmt.execute("CREATE SCHEMA IF NOT EXISTS " + defaultUidamSchema);
 
                 // Run Liquibase migration
                 LOGGER.info("Liquibase configuration Start run for tenant {}", tenantId);
