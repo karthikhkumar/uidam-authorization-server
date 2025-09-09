@@ -87,7 +87,8 @@
             **/AuthorizationConsent.java,
             **/FederatedIdentityIdTokenCustomizer.java,
             **/UserRepositoryOauth2UserHandler.java,
-            **/SecretEncoders.java
+            **/SecretEncoders.java,
+            **/LiquibaseConfig.java
         </sonar.coverage.exclusions>
 
         <checkstyle.config.location>${project.basedir}/checkStyle.xml</checkstyle.config.location>

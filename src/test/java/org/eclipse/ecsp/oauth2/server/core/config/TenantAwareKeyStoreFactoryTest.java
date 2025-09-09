@@ -34,13 +34,13 @@ import java.util.Map;
 
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_JWT_PRIVATE_KEY;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_JWT_PUBLIC_KEY;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_KEYSTORE_ALIAS;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_KEYSTORE_FILENAME;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_KEYSTORE_JKS_ENCODED_CONTENT;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_KEYSTORE_PASS;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_KEYSTORE_TYPE;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 
 /**
@@ -132,60 +132,34 @@ class TenantAwareKeyStoreFactoryTest {
     }
 
     @Test
-    void testGetRsaKeyPairForCurrentTenantWithPemKeys() {
+    void testCreateKeyPairFromPemFiles() {
         // Arrange
         final String tenantId = "test-tenant";
-        Map<String, String> keyStoreConfig = new HashMap<>();
-        keyStoreConfig.put(TENANT_JWT_PUBLIC_KEY, 
-            "-----BEGIN PUBLIC KEY-----\n"
-                + "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA...\n"
-                + "-----END PUBLIC KEY-----");
-        keyStoreConfig.put(TENANT_JWT_PRIVATE_KEY, 
-            "-----BEGIN PRIVATE KEY-----\n"
-                + "MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC...\n"
-                + "-----END PRIVATE KEY-----");
+        Map<String, String> certConfig = new HashMap<>();
+        certConfig.put(TENANT_JWT_PUBLIC_KEY, "test-public-key");
+        certConfig.put(TENANT_JWT_PRIVATE_KEY, "test-private-key");
 
         when(tenantConfigurationService.getTenantProperties()).thenReturn(tenantProperties);
         when(tenantProperties.getTenantId()).thenReturn(tenantId);
-        when(tenantProperties.getKeyStore()).thenReturn((HashMap<String, String>) keyStoreConfig);
+        when(tenantProperties.getKeyStore()).thenReturn(null);
+        when(tenantProperties.getCert()).thenReturn((HashMap<String, String>) certConfig);
 
-        try {
-            // Act - This will fail due to invalid key format but tests the flow
-            factory.getRsaKeyPairForCurrentTenant();
-        } catch (Exception e) {
-            // Expected due to invalid test key format
-        }
-
-        // If we got here without NPE, the method handled the PEM key scenario
-        assertNotNull(factory);
+        // Act & Assert - This will throw UnsupportedOperationException as expected
+        assertThrows(RuntimeException.class, () -> factory.getRsaKeyPairForCurrentTenant());
     }
 
     @Test
-    void testGetCurrentTenantPublicKeySuccess() throws Exception {
+    void testCreateKeyPairNoValidConfiguration() {
         // Arrange
         final String tenantId = "test-tenant";
-        String alias = "test-alias";
-        Map<String, String> keyStoreConfig = new HashMap<>();
-        keyStoreConfig.put(TENANT_KEYSTORE_FILENAME, "test.jks");
-        keyStoreConfig.put(TENANT_KEYSTORE_ALIAS, alias);
-        keyStoreConfig.put(TENANT_KEYSTORE_TYPE, "JKS");
-        keyStoreConfig.put(TENANT_KEYSTORE_PASS, "password");
-        keyStoreConfig.put(TENANT_KEYSTORE_JKS_ENCODED_CONTENT, "");
 
         when(tenantConfigurationService.getTenantProperties()).thenReturn(tenantProperties);
         when(tenantProperties.getTenantId()).thenReturn(tenantId);
-        when(tenantProperties.getKeyStore()).thenReturn((HashMap<String, String>) keyStoreConfig);
+        when(tenantProperties.getKeyStore()).thenReturn(null);
+        when(tenantProperties.getCert()).thenReturn(null);
 
-        // We can't easily mock the KeyStore creation due to file operations
-        // But we can test the method exists and handles tenant properties correctly
-        try {
-            factory.getCurrentTenantPublicKey();
-        } catch (Exception e) {
-            // Expected due to KeyStore creation failure in test environment
-        }
-
-        // If we got here, the method processed tenant properties correctly
-        assertNotNull(factory);
+        // Act & Assert
+        assertThrows(RuntimeException.class, () -> factory.getRsaKeyPairForCurrentTenant());
     }
 
     @Test
@@ -216,33 +190,6 @@ class TenantAwareKeyStoreFactoryTest {
     }
 
     @Test
-    void testCacheKeyGeneration() {
-        // Arrange
-        final String tenantId = "test-tenant";
-        String keystoreFilename = "test.jks";
-        Map<String, String> keyStoreConfig = new HashMap<>();
-        keyStoreConfig.put(TENANT_KEYSTORE_FILENAME, keystoreFilename);
-        keyStoreConfig.put(TENANT_KEYSTORE_TYPE, "JKS");
-        keyStoreConfig.put(TENANT_KEYSTORE_PASS, "password");
-        keyStoreConfig.put(TENANT_KEYSTORE_JKS_ENCODED_CONTENT, "");
-
-        when(tenantConfigurationService.getTenantProperties()).thenReturn(tenantProperties);
-        when(tenantProperties.getTenantId()).thenReturn(tenantId);
-        when(tenantProperties.getKeyStore()).thenReturn((HashMap<String, String>) keyStoreConfig);
-
-        try {
-            // Act - Call multiple times to test caching
-            factory.getKeyStoreForCurrentTenant();
-            factory.getKeyStoreForCurrentTenant();
-        } catch (Exception e) {
-            // Expected due to file operations in actual implementation
-        }
-
-        // Verify that the factory maintains its cache structure
-        assertNotNull(factory);
-    }
-
-    @Test
     void testErrorHandlingInKeyStoreCreation() {
         // Arrange
         final String tenantId = "test-tenant";
@@ -258,5 +205,63 @@ class TenantAwareKeyStoreFactoryTest {
 
         // Act & Assert
         assertThrows(RuntimeException.class, () -> factory.getKeyStoreForCurrentTenant());
+    }
+
+    @Test
+    void testClearCache() {
+        // Act - Clear cache without loading anything first
+        factory.clearCache();
+        
+        // Verify cache is cleared by checking stats
+        String stats = factory.getCacheStats();
+        assertNotNull(stats);
+        assertTrue(stats.contains("KeyStore cache: 0 entries"));
+        assertTrue(stats.contains("KeyPair cache: 0 entries"));
+    }
+
+    @Test
+    void testGetCacheStats() {
+        // Act - Get stats from empty cache
+        String stats = factory.getCacheStats();
+
+        // Assert
+        assertNotNull(stats);
+        assertTrue(stats.contains("KeyStore cache:"));
+        assertTrue(stats.contains("KeyPair cache:"));
+        assertTrue(stats.contains("entries"));
+    }
+
+    @Test
+    void testCreateKeyPairCacheKeyWithPemFiles() {
+        // Arrange
+        final String tenantId = "test-tenant";
+        final String publicKeyContent = "public-key-content";
+        final String privateKeyContent = "private-key-content";
+
+        Map<String, String> certConfig = new HashMap<>();
+        certConfig.put(TENANT_JWT_PUBLIC_KEY, publicKeyContent);
+        certConfig.put(TENANT_JWT_PRIVATE_KEY, privateKeyContent);
+
+        when(tenantConfigurationService.getTenantProperties()).thenReturn(tenantProperties);
+        when(tenantProperties.getTenantId()).thenReturn(tenantId);
+        when(tenantProperties.getKeyStore()).thenReturn(null);
+        when(tenantProperties.getCert()).thenReturn((HashMap<String, String>) certConfig);
+
+        // Act & Assert - This will attempt to create PEM cache key
+        assertThrows(RuntimeException.class, () -> factory.getRsaKeyPairForCurrentTenant());
+    }
+
+    @Test
+    void testCreateKeyPairCacheKeyInvalidConfiguration() {
+        // Arrange
+        final String tenantId = "test-tenant";
+
+        when(tenantConfigurationService.getTenantProperties()).thenReturn(tenantProperties);
+        when(tenantProperties.getTenantId()).thenReturn(tenantId);
+        when(tenantProperties.getKeyStore()).thenReturn(new HashMap<>());
+        when(tenantProperties.getCert()).thenReturn(new HashMap<>());
+
+        // Act & Assert - This should trigger the IllegalStateException in createKeyPairCacheKey
+        assertThrows(RuntimeException.class, () -> factory.getRsaKeyPairForCurrentTenant());
     }
 }
