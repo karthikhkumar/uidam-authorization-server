@@ -33,25 +33,27 @@ public class AuthorizationMetricsService {
     public AuthorizationMetricsService(MeterRegistry meterRegistry){
         this.meterRegistry = meterRegistry;
     }
-    
-    public void incrementMetrics(MetricInfo metricInfo) {
-        MetricType metricType = metricInfo.getMetricType();
-        String description = metricType.getDescription();
 
+    public void incrementMetrics(MetricType metricType, String... tags) {
+        String description = metricType.getDescription();
         Counter.builder(metricType.getMetricName())
             .description(description)
-            .tags(metricInfo.getTags())
+            .tags(tags)
             .register(meterRegistry)
             .increment();
     }
 
     public void incrementMetricsForTenant(String tenantId, MetricType... metricTypes) {
+        String[] tagArray = new String[]{ TENANT_ID_TAG, tenantId};
         for (MetricType metricType : metricTypes) {
-            MetricInfo metricInfo = MetricInfo.builder()
-                                        .metricType(metricType)
-                                        .tags(new String[]{ TENANT_ID_TAG, tenantId })
-                                        .build();
-            incrementMetrics(metricInfo);
+            incrementMetrics(metricType, tagArray);
+        }
+    }
+
+        public void incrementMetricsForTenantAndIdp(String tenantId, String idProvider, MetricType... metricTypes) {
+        String[] tagArray = new String[]{ TENANT_ID_TAG, tenantId, "id_provider", idProvider };
+        for (MetricType metricType : metricTypes) {
+            incrementMetrics(metricType, tagArray);
         }
     }
 
