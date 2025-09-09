@@ -261,7 +261,10 @@ public class IgniteSecurityConfig {
                             String requestUri = request.getRequestURI();
                             String method = request.getMethod();
                             // Only disable CSRF for POST requests to logout endpoints
-                            return "POST".equals(method) && requestUri.matches(".*/oauth2/logout(/.*)?");
+                            // Using safe string operations instead of regex to prevent ReDoS vulnerability
+                            return "POST".equals(method) 
+                                   && (requestUri.endsWith("/oauth2/logout") 
+                                    || requestUri.contains("/oauth2/logout/"));
                         }));
     }
 
