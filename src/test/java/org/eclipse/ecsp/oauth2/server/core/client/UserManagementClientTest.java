@@ -138,7 +138,10 @@ class UserManagementClientTest {
         when(tenantConfigurationService.getTenantProperties("ecsp")).thenReturn(mockTenantProperties);
 
         // Create UserManagementClient with mocked WebClient for testing
-        userManagementClient = new UserManagementClient(tenantConfigurationService, captchaService, webClientMock, authorizationMetricsService);
+        userManagementClient = new UserManagementClient(tenantConfigurationService,
+                                                        captchaService,
+                                                        webClientMock,
+                                                        authorizationMetricsService);
     }
 
     private TenantProperties createMockTenantProperties() {

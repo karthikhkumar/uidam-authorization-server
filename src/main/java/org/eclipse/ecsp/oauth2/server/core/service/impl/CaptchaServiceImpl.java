@@ -122,12 +122,16 @@ public class CaptchaServiceImpl implements CaptchaService {
                     if (googleResponse.hasClientError()) {
                         LOGGER.debug("Recaptcha client error");
                     }
-                    metricsService.incrementMetricsForTenant(tenantId, MetricType.FAILURE_LOGIN_CAPTCHA, MetricType.FAILURE_LOGIN_ATTEMPTS);
+                    metricsService.incrementMetricsForTenant(tenantId,
+                                                            MetricType.FAILURE_LOGIN_CAPTCHA,
+                                                            MetricType.FAILURE_LOGIN_ATTEMPTS);
                     throw new ReCaptchaInvalidException("reCaptcha was not successfully validated");
                 }
             }
         } catch (RestClientException rce) {
-            metricsService.incrementMetricsForTenant(tenantId, MetricType.FAILURE_LOGIN_CAPTCHA, MetricType.FAILURE_LOGIN_ATTEMPTS);
+            metricsService.incrementMetricsForTenant(tenantId,
+                                                    MetricType.FAILURE_LOGIN_CAPTCHA,
+                                                    MetricType.FAILURE_LOGIN_ATTEMPTS);
             throw new ReCaptchaUnavailableException("ReCaptcha service unavailable at this time. "
                 + "Please try again later.", rce);
         } finally {

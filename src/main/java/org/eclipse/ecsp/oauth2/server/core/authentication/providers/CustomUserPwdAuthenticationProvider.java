@@ -98,14 +98,14 @@ public class CustomUserPwdAuthenticationProvider implements AuthenticationProvid
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
         CustomUserPwdAuthenticationToken customUserPwdAuthenticationToken =
             (CustomUserPwdAuthenticationToken) authentication;
-        String username = customUserPwdAuthenticationToken.getPrincipal() + "";
-        String password = customUserPwdAuthenticationToken.getCredentials() + "";
-        String accountName = customUserPwdAuthenticationToken.getAccountName();
         UserEvent userEvent = new UserEvent();
         userEvent.setType(IgniteOauth2CoreConstants.USER_EVENT_LOGIN_ATTEMPT);
         TenantProperties tenantProperties = tenantConfigurationService.getTenantProperties();
-        String tenantId = tenantProperties.getTenantId();
         int maxAllowedLoginAttempt = tenantProperties.getUser().getMaxAllowedLoginAttempts();
+        String tenantId = tenantProperties.getTenantId();
+        String username = customUserPwdAuthenticationToken.getPrincipal() + "";
+        String password = customUserPwdAuthenticationToken.getCredentials() + "";
+        String accountName = customUserPwdAuthenticationToken.getAccountName();
         LOGGER.debug("Authenticating user details for username {}", username);
         metricsService.incrementMetricsForTenant(tenantId, MetricType.LOGIN_ATTEMPTS);
         UserDetailsResponse userDetailsResponse = userManagementClient.getUserDetailsByUsername(username, accountName);
@@ -113,7 +113,9 @@ public class CustomUserPwdAuthenticationProvider implements AuthenticationProvid
             userDetailsResponse.getPasswordEncoder(), userDetailsResponse.getSalt());
         if (!encryptedUserEnteredPassword.equals(userDetailsResponse.getPassword())) {
             LOGGER.info("Password validation status: FAILED for username {}", username);
-            metricsService.incrementMetricsForTenant(tenantId, MetricType.FAILURE_LOGIN_WRONG_PASSWORD, MetricType.FAILURE_LOGIN_ATTEMPTS);
+            metricsService.incrementMetricsForTenant(tenantId,
+                                                    MetricType.FAILURE_LOGIN_WRONG_PASSWORD,
+                                                    MetricType.FAILURE_LOGIN_ATTEMPTS);
             addUserEvent(userEvent, IgniteOauth2CoreConstants.USER_EVENT_LOGIN_FAILURE,
                 IgniteOauth2CoreConstants.USER_EVENT_LOGIN_FAILURE_BAD_CREDENTIALS_MSG,
                 userDetailsResponse.getId());

@@ -6,9 +6,13 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_ID_TAG;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class AuthorizationMetricsServiceTest {
+
+    private static final int EXPECTED_COUNT_AFTER_SINGLE_INCREMENT = 1;
+    private static final int EXPECTED_COUNT_AFTER_DOUBLE_INCREMENT = 2;
 
     private SimpleMeterRegistry meterRegistry;
     private AuthorizationMetricsService metricsService;
@@ -25,32 +29,36 @@ class AuthorizationMetricsServiceTest {
 
         Counter counter = meterRegistry.find("login.attempts").tags("tag1", "value1").counter();
         assertNotNull(counter);
-        assertEquals(1.0, counter.count(), 0.001);
+        assertEquals(EXPECTED_COUNT_AFTER_SINGLE_INCREMENT, counter.count());
     }
 
     @Test
     void testIncrementMetricsForTenant() {
-        metricsService.incrementMetricsForTenant("tenantX", MetricType.SUCCESS_LOGIN_ATTEMPTS, MetricType.FAILURE_LOGIN_ATTEMPTS);
+        metricsService.incrementMetricsForTenant("tenantX",
+                                                MetricType.SUCCESS_LOGIN_ATTEMPTS,
+                                                MetricType.FAILURE_LOGIN_ATTEMPTS);
 
         Counter counter1 = meterRegistry.find("success.login.attempts").tags(TENANT_ID_TAG, "tenantX").counter();
         Counter counter2 = meterRegistry.find("failure.login.attempts").tags(TENANT_ID_TAG, "tenantX").counter();
 
         assertNotNull(counter1);
         assertNotNull(counter2);
-        assertEquals(1.0, counter1.count(), 0.001);
-        assertEquals(1.0, counter2.count(), 0.001);
+        assertEquals(EXPECTED_COUNT_AFTER_SINGLE_INCREMENT, counter1.count());
+        assertEquals(EXPECTED_COUNT_AFTER_SINGLE_INCREMENT, counter2.count());
     }
 
     @Test
     void testIncrementMetricsForTenantAndIdp() {
-        metricsService.incrementMetricsForTenantAndIdp("tenantY", "idpZ", MetricType.SUCCESS_LOGIN_BY_EXTERNAL_IDP_CREDENTIALS);
+        metricsService.incrementMetricsForTenantAndIdp("tenantY",
+                                            "idpZ",
+                                                      MetricType.SUCCESS_LOGIN_BY_EXTERNAL_IDP_CREDENTIALS);
 
         Counter counter = meterRegistry.find("success.login.by.external.idp.credentials")
                 .tags(TENANT_ID_TAG, "tenantY", "id_provider", "idpZ")
                 .counter();
 
         assertNotNull(counter);
-        assertEquals(1.0, counter.count(), 0.001);
+        assertEquals(EXPECTED_COUNT_AFTER_SINGLE_INCREMENT, counter.count());
     }
 
     @Test
@@ -60,7 +68,7 @@ class AuthorizationMetricsServiceTest {
 
         Counter counter = meterRegistry.find("failure.login.captcha").tags("tagA", "valueA").counter();
         assertNotNull(counter);
-        assertEquals(2.0, counter.count(), 0.001);
+        assertEquals(EXPECTED_COUNT_AFTER_DOUBLE_INCREMENT, counter.count());
     }
 
     @Test
@@ -77,7 +85,7 @@ class AuthorizationMetricsServiceTest {
 
         assertNotNull(counter1);
         assertNotNull(counter2);
-        assertEquals(1.0, counter1.count(), 0.001);
-        assertEquals(1.0, counter2.count(), 0.001);
+        assertEquals(EXPECTED_COUNT_AFTER_SINGLE_INCREMENT, counter1.count());
+        assertEquals(EXPECTED_COUNT_AFTER_SINGLE_INCREMENT, counter2.count());
     }
 }
