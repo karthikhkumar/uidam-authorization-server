@@ -87,8 +87,7 @@
             **/AuthorizationConsent.java,
             **/FederatedIdentityIdTokenCustomizer.java,
             **/UserRepositoryOauth2UserHandler.java,
-            **/SecretEncoders.java,
-            **/LiquibaseConfig.java
+            **/SecretEncoders.java
         </sonar.coverage.exclusions>
 
         <checkstyle.config.location>${project.basedir}/checkStyle.xml</checkstyle.config.location>
@@ -236,6 +235,10 @@
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
             <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-registry-datadog</artifactId>
         </dependency>
         <!--
         <dependency>

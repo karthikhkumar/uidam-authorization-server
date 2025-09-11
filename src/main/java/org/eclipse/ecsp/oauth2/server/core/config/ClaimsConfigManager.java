@@ -25,6 +25,8 @@ import org.eclipse.ecsp.oauth2.server.core.client.UserManagementClient;
 import org.eclipse.ecsp.oauth2.server.core.common.CustomOauth2TokenGenErrorCodes;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.ExternalIdpRegisteredClient;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
+import org.eclipse.ecsp.oauth2.server.core.metrics.AuthorizationMetricsService;
+import org.eclipse.ecsp.oauth2.server.core.metrics.MetricType;
 import org.eclipse.ecsp.oauth2.server.core.request.dto.FederatedUserDto;
 import org.eclipse.ecsp.oauth2.server.core.response.UserDetailsResponse;
 import org.eclipse.ecsp.oauth2.server.core.service.ClaimMappingService;
@@ -89,13 +91,14 @@ import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2C
  */
 @Configuration
 public class ClaimsConfigManager {
-    private static final int TENANT_PREFIX_PARTS = 2;
+    private static final int INT_TWO = 2;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ClaimsConfigManager.class);
 
     private final TenantConfigurationService tenantConfigurationService;
     private final UserManagementClient userManagementClient;
     private final ClaimMappingService claimMappingService;
+    private final AuthorizationMetricsService authorizationMetricsService;
 
     /**
      * Constructor for ClaimsConfigManager. It initializes the tenant configuration service
@@ -108,10 +111,12 @@ public class ClaimsConfigManager {
     @Autowired
     public ClaimsConfigManager(TenantConfigurationService tenantConfigurationService,
             ClaimMappingService claimMappingService,
-            UserManagementClient userManagementClient) {
+            UserManagementClient userManagementClient,
+            AuthorizationMetricsService authorizationMetricsService) {
         this.tenantConfigurationService = tenantConfigurationService;
         this.claimMappingService = claimMappingService;
         this.userManagementClient = userManagementClient;
+        this.authorizationMetricsService = authorizationMetricsService;
     }
 
     
@@ -154,6 +159,9 @@ public class ClaimsConfigManager {
                     userDetailsResponse = userManagementClient.getUserDetailsByUsername(
                             customUserPwdAuthenticationToken.getName(),
                             customUserPwdAuthenticationToken.getAccountName());
+                    authorizationMetricsService.incrementMetricsForTenant(
+                            getCurrentTenantProperties().getTenantId(),
+                            MetricType.SUCCESS_LOGIN_BY_INTERNAL_CREDENTIALS);
                 }
                 if (context.getPrincipal() instanceof OAuth2AuthenticationToken oauth2AuthenticationToken) {
                     LOGGER.debug("Federated user authentication");
@@ -209,16 +217,17 @@ public class ClaimsConfigManager {
         // Extract original registration ID for the method call
         String originalRegistrationId = idpClient.getRegistrationId();
         
-        // Use StringBuilder for better performance when constructing federated username
-        int expectedLength = originalRegistrationId.length() + userName.length() + 1;
-        StringBuilder federatedUserNameBuilder = new StringBuilder(expectedLength);
-        String federatedUserName = federatedUserNameBuilder
-                .append(originalRegistrationId)
-                .append("_")
-                .append(userName)
-                .toString();
+        String federatedUserName = originalRegistrationId + "_" + userName;
 
-        return getFederatedUserDetails(originalRegistrationId, federatedUserName, idpClient, claims);
+        UserDetailsResponse userDetailsResponse = getFederatedUserDetails(originalRegistrationId,
+                                                                        federatedUserName,
+                                                                        idpClient,
+                                                                        claims);
+        authorizationMetricsService.incrementMetricsForTenantAndIdp(
+                                                                getCurrentTenantProperties().getTenantId(),
+                                                                idpClient.getClientId(),
+                                                                MetricType.SUCCESS_LOGIN_BY_EXTERNAL_IDP_CREDENTIALS);
+        return userDetailsResponse;
     }
 
     /**
@@ -252,8 +261,8 @@ public class ClaimsConfigManager {
             throwInvalidRegistrationFormatException(tenantPrefixedRegistrationId);
         }
         
-        String[] parts = tenantPrefixedRegistrationId.split("-", TENANT_PREFIX_PARTS);
-        if (parts.length != TENANT_PREFIX_PARTS || parts[0].isEmpty() || parts[1].isEmpty()) {
+        String[] parts = tenantPrefixedRegistrationId.split("-", INT_TWO);
+        if (parts.length != INT_TWO || parts[0].isEmpty() || parts[1].isEmpty()) {
             throwInvalidRegistrationFormatException(tenantPrefixedRegistrationId);
         }
 
@@ -283,14 +292,9 @@ public class ClaimsConfigManager {
      * @throws OAuth2AuthenticationException Always throws this exception with consistent error message
      */
     private void throwInvalidTenantAccessException(String tenantPrefix, String currentTenantId) {
-        StringBuilder errorMessage = new StringBuilder("Access denied: Registration ID belongs to tenant '")
-                .append(tenantPrefix)
-                .append("' but current tenant is '")
-                .append(currentTenantId)
-                .append("'");
-        
         throw new OAuth2AuthenticationException(
-                new OAuth2Error("invalid_tenant_access", errorMessage.toString(), null));
+                new OAuth2Error("invalid_tenant_access", "Access denied: Registration ID belongs to tenant '"
+                        + tenantPrefix + "' but current tenant is '" + currentTenantId + "'", null));
     }
     
     /**
@@ -300,13 +304,10 @@ public class ClaimsConfigManager {
      * @throws OAuth2AuthenticationException Always throws this exception with consistent error message
      */
     private void throwInvalidRegistrationFormatException(String registrationId) {
-        StringBuilder errorMessage = new StringBuilder("Registration ID must be in format 'tenant-provider' but was: ")
-                .append(registrationId);
-        
         throw new OAuth2AuthenticationException(
             new OAuth2Error(
                 "invalid_registration_format",
-                errorMessage.toString(),
+                "Registration ID must be in format 'tenant-provider' but was: " + registrationId,
                 null
             )
         );

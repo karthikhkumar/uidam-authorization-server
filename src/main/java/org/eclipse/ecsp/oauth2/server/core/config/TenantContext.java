@@ -3,6 +3,8 @@ package org.eclipse.ecsp.oauth2.server.core.config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.ECSP;
+
 /**
  * TenantContext is a utility class that provides a way to manage the current tenant in a thread-local context. It
  * allows setting and getting the current tenant ID, which can be useful in multi-tenant applications.
@@ -17,16 +19,18 @@ public class TenantContext {
     }
 
     private static final ThreadLocal<String> CURRENT_TENANT = new ThreadLocal<>();
+    private static final String DEFAULT_TENANT_ID = ECSP;
 
     /**
      * Get the current tenant ID from thread local context.
      *
-     * @return current tenant ID or null if not set
+     * @return current tenant ID or default if not set
      */
     public static String getCurrentTenant() {
         String tenant = CURRENT_TENANT.get();
         if (tenant == null) {
-            LOGGER.debug("No tenant found in context");
+            tenant = DEFAULT_TENANT_ID;
+            LOGGER.debug("No tenant found in context, using default: {}", tenant);
         }
         return tenant;
     }
@@ -35,11 +39,10 @@ public class TenantContext {
      * Set the current tenant ID in thread local context.
      *
      * @param tenant the tenant ID to set
-     * @throws IllegalArgumentException if tenant is null or empty
      */
     public static void setCurrentTenant(String tenant) {
         if (tenant == null || tenant.trim().isEmpty()) {
-            throw new IllegalArgumentException("Tenant ID cannot be null or empty");
+            tenant = DEFAULT_TENANT_ID;
         }
         CURRENT_TENANT.set(tenant);
         LOGGER.debug("Set current tenant to: {}", tenant);

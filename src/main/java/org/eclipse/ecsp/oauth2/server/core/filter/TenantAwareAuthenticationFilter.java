@@ -59,7 +59,7 @@ public class TenantAwareAuthenticationFilter extends OncePerRequestFilter {
     // Authentication endpoints to monitor - using actual codebase constants
     private static final String FORM_LOGIN_ENDPOINT = LOGIN_HANDLER; // "/login"
     private static final String OAUTH_LOGIN_ENDPOINT = IDP_AUTHORIZATION_URI; // "/oauth2/authorization/"
-    private static final String ERROR_REDIRECT_PATH = LOGIN_FAILURE_HANDLER; // "/login?error"
+    private static final String ERROR_PAGE = LOGIN_FAILURE_HANDLER; // "/login?error"
 
     public TenantAwareAuthenticationFilter(TenantConfigurationService tenantConfigurationService) {
         this.tenantConfigurationService = tenantConfigurationService;
@@ -78,20 +78,17 @@ public class TenantAwareAuthenticationFilter extends OncePerRequestFilter {
             // Only check authentication-related endpoints
             if (isAuthenticationEndpoint(requestUri) && !isAuthenticationMethodAllowed(request)) {
                 LOGGER.warn("Authentication method not allowed for tenant: {} on URI: {}", currentTenant, requestUri);
-                redirectToAlternativeAuth(response);
+                redirectToAlternativeAuth(request, response);
                 return;
             }
 
             // Continue filter chain if authentication method is allowed
             filterChain.doFilter(request, response);
 
-        } catch (ServletException | IOException e) {
-            // Re-throw servlet exceptions as they're part of the filter contract
-            throw e;
-        } catch (RuntimeException e) {
-            LOGGER.error("Runtime error in tenant-aware authentication filter for tenant: {}", currentTenant, e);
-            // Fail secure: redirect to error page instead of continuing
-            response.sendRedirect(ERROR_REDIRECT_PATH + "?error=tenant_security_error");
+        } catch (Exception e) {
+            LOGGER.error("Error in tenant-aware authentication filter for tenant: {}", currentTenant, e);
+            // In case of error, allow the request to continue to avoid blocking all authentication
+            filterChain.doFilter(request, response);
         }
     }
 
@@ -111,12 +108,6 @@ public class TenantAwareAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             TenantProperties tenantProperties = tenantConfigurationService.getTenantProperties();
-            
-            // Fail secure: if no tenant properties found, deny authentication attempts
-            if (tenantProperties == null) {
-                LOGGER.warn("No tenant properties found for current tenant - denying authentication attempt");
-                return false;
-            }
 
             // Check form login attempts
             if (isFormLoginAttempt(request, requestUri)) {
@@ -134,14 +125,14 @@ public class TenantAwareAuthenticationFilter extends OncePerRequestFilter {
                 return allowed;
             }
 
-            // Allow other requests by default (non-authentication endpoints)
+            // Allow other requests by default
             return true;
 
-        } catch (RuntimeException e) {
-            LOGGER.error("Runtime error checking authentication method for tenant: {}",
+        } catch (Exception e) {
+            LOGGER.error("Error checking authentication method for tenant: {}",
                     SessionTenantResolver.getCurrentTenant(), e);
-            // Fail secure: deny authentication when configuration cannot be determined
-            return false;
+            // In case of error, allow the request to continue
+            return true;
         }
     }
 
@@ -164,16 +155,16 @@ public class TenantAwareAuthenticationFilter extends OncePerRequestFilter {
     /**
      * Redirect to alternative authentication method or error page.
      */
-    private void redirectToAlternativeAuth(HttpServletResponse response)
+    private void redirectToAlternativeAuth(HttpServletRequest request, HttpServletResponse response)
             throws IOException {
         try {
             // No alternative available - show error
             LOGGER.warn("No authentication methods available for tenant: {}", SessionTenantResolver.getCurrentTenant());
-            response.sendRedirect(ERROR_REDIRECT_PATH + "?error=no_auth_methods_available");
+            response.sendRedirect(ERROR_PAGE + "=no_auth_methods_available");
 
         } catch (Exception e) {
             LOGGER.error("Error redirecting for tenant: {}", SessionTenantResolver.getCurrentTenant(), e);
-            response.sendRedirect(ERROR_REDIRECT_PATH + "?error=redirect_error");
+            response.sendRedirect(ERROR_PAGE + "=redirect_error");
         }
     }
 }

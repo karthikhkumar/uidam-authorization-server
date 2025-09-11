@@ -29,6 +29,7 @@ import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.ClientPropert
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.ExternalIdpRegisteredClient;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.UserProperties;
+import org.eclipse.ecsp.oauth2.server.core.metrics.AuthorizationMetricsService;
 import org.eclipse.ecsp.oauth2.server.core.request.dto.FederatedUserDto;
 import org.eclipse.ecsp.oauth2.server.core.response.UserDetailsResponse;
 import org.eclipse.ecsp.oauth2.server.core.service.ClaimMappingService;
@@ -105,6 +106,9 @@ class ClaimsConfigManagerTest {
 
     @Mock
     private ClaimMappingService claimMappingService;
+
+    @Mock
+    private AuthorizationMetricsService authorizationMetricsService;
 
     @InjectMocks
     private ClaimsConfigManager claimsConfigManager;

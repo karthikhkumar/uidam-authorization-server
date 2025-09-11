@@ -49,110 +49,64 @@ public class SessionTenantResolver {
      * This method provides a more reliable tenant resolution than pure ThreadLocal
      * in multi-threaded environments like OAuth2 authorization flows.
      * Resolution order:
-     * 1. ThreadLocal context (current thread) - fast path, no synchronization
-     * 2. HTTP session (cross-thread persistence) - synchronized access
-     * 3. null if no tenant found
+     * 1. ThreadLocal context (current thread)
+     * 2. HTTP session (cross-thread persistence) 
+     * 3. Default tenant
      *
-     * <p>Note: Intentionally not synchronized for performance - uses selective synchronization
-     * in getFromSessionSynchronized() only when needed.
-     *
-     * @return current tenant ID, or null if no tenant is resolved
+     * @return current tenant ID, never null
      */
-    @SuppressWarnings("java:S2886") // Intentional selective synchronization for performance
     public static String getCurrentTenant() {
-        // Fast path - no synchronization for ThreadLocal hits (majority of calls)
-        String tenant = TenantContext.getCurrentTenant();
+        // First try ThreadLocal (fastest)
+        String tenant = TenantContext.hasTenant() ? TenantContext.getCurrentTenant() : null;
         
         if (StringUtils.hasText(tenant)) {
             LOGGER.debug("Tenant resolved from ThreadLocal: {}", tenant);
             return tenant;
         }
 
-        // Slow path - synchronized only when ThreadLocal is empty
-        return getFromSessionSynchronized();
-    }
-
-    /**
-     * Synchronized session access - only called when ThreadLocal is empty.
-     */
-    private static synchronized String getFromSessionSynchronized() {
-        // Double-check ThreadLocal inside lock (might have been set by another thread)
-        String tenant = TenantContext.getCurrentTenant();
-        if (StringUtils.hasText(tenant)) {
-            LOGGER.debug("Tenant resolved from ThreadLocal after lock: {}", tenant);
-            return tenant;
-        }
-
-        // Try to get from session if ThreadLocal is still empty
-        tenant = getTenantFromSessionWithThreadLocalUpdate();
-        if (StringUtils.hasText(tenant)) {
-            LOGGER.debug("Tenant resolved from session: {}", tenant);
-            return tenant;
-        }
-        
-        LOGGER.debug("No tenant found in ThreadLocal or session");
-        return null;
-    }
-
-    /**
-     * Get tenant from session and update ThreadLocal if found.
-     */
-    private static String getTenantFromSessionWithThreadLocalUpdate() {
+        // Try to get from session if ThreadLocal is empty or default
         try {
-            String tenant = getTenantFromCurrentSession();
+            tenant = getTenantFromCurrentSession();
             if (StringUtils.hasText(tenant)) {
-                // Update ThreadLocal for current thread with proper error handling
-                updateThreadLocalSafely(tenant);
+                LOGGER.debug("Tenant resolved from session: {}", tenant);
+                // Update ThreadLocal for current thread
+                TenantContext.setCurrentTenant(tenant);
                 return tenant;
             }
-        } catch (IllegalStateException e) {
-            LOGGER.debug("No request context available: {}", e.getMessage());
+        } catch (Exception e) {
+            LOGGER.debug("Could not resolve tenant from session: {}", e.getMessage());
         }
         return null;
-    }
-
-    /**
-     * Safely update ThreadLocal with tenant, handling validation errors.
-     */
-    private static void updateThreadLocalSafely(String tenant) {
-        try {
-            TenantContext.setCurrentTenant(tenant);
-        } catch (IllegalArgumentException e) {
-            LOGGER.warn("Invalid tenant found in session: {}", tenant);
-        }
     }
 
     /**
      * Set tenant ID in both ThreadLocal and session for persistence.
-     * Uses synchronized access to prevent race conditions between ThreadLocal and session updates.
-     *
-     * @param tenantId the tenant ID to set
-     * @throws IllegalArgumentException if tenantId is null or empty
      */
-    public static synchronized void setCurrentTenant(String tenantId) {
+    public static void setCurrentTenant(String tenantId) {
         if (!StringUtils.hasText(tenantId)) {
-            throw new IllegalArgumentException("Tenant ID cannot be null or empty");
+            LOGGER.debug("Attempted to set empty tenant ID, ignoring");
+            return;
         }
 
-        // Set in ThreadLocal first - this will validate the tenant ID
+        // Set in ThreadLocal
         TenantContext.setCurrentTenant(tenantId);
 
-        // Then store in session for cross-thread access
-        storeTenantInCurrentSession(tenantId);
-        LOGGER.debug("Tenant '{}' set in both ThreadLocal and session", tenantId);
+        // Also store in session for cross-thread access
+        try {
+            storeTenantInCurrentSession(tenantId);
+            LOGGER.debug("Tenant '{}' set in both ThreadLocal and session", tenantId);
+        } catch (Exception e) {
+            LOGGER.debug("Could not store tenant in session: {}", e.getMessage());
+        }
     }
 
     /**
-     * Get tenant from current HTTP session with cached request context.
+     * Get tenant from current HTTP session.
      */
     private static String getTenantFromCurrentSession() {
         HttpServletRequest request = getCurrentRequest();
         if (request != null && request.getSession(false) != null) {
-            try {
-                return (String) request.getSession(false).getAttribute(TENANT_SESSION_KEY);
-            } catch (ClassCastException e) {
-                LOGGER.warn("Invalid tenant data type in session: {}", e.getMessage());
-            }
+            return (String) request.getSession(false).getAttribute(TENANT_SESSION_KEY);
         }
         return null;
     }
@@ -161,16 +115,10 @@ public class SessionTenantResolver {
      * Store tenant in current HTTP session.
      */
     private static void storeTenantInCurrentSession(String tenantId) {
-        try {
-            HttpServletRequest request = getCurrentRequest();
-            if (request != null && StringUtils.hasText(tenantId)) {
-                HttpSession session = request.getSession(true);
-                session.setAttribute(TENANT_SESSION_KEY, tenantId);
-            }
-        } catch (IllegalStateException e) {
-            LOGGER.warn("Cannot store tenant in session - no request context: {}", e.getMessage());
-        } catch (IllegalArgumentException e) {
-            LOGGER.warn("Cannot store tenant in session - invalid session: {}", e.getMessage());
+        HttpServletRequest request = getCurrentRequest();
+        if (request != null && StringUtils.hasText(tenantId)) {
+            HttpSession session = request.getSession(true);
+            session.setAttribute(TENANT_SESSION_KEY, tenantId);
         }
     }
 
@@ -191,7 +139,7 @@ public class SessionTenantResolver {
     /**
      * Clear tenant from both ThreadLocal and session.
      */
-    public static synchronized void clearTenant() {
+    public static void clearTenant() {
         TenantContext.clear();
         
         try {
@@ -200,10 +148,8 @@ public class SessionTenantResolver {
                 request.getSession(false).removeAttribute(TENANT_SESSION_KEY);
                 LOGGER.debug("Cleared tenant from session");
             }
-        } catch (IllegalStateException e) {
-            LOGGER.warn("Cannot clear tenant from session - no request context: {}", e.getMessage());
-        } catch (IllegalArgumentException e) {
-            LOGGER.warn("Cannot clear tenant from session - invalid session: {}", e.getMessage());
+        } catch (Exception e) {
+            LOGGER.debug("Could not clear tenant from session: {}", e.getMessage());
         }
     }
 }

@@ -28,6 +28,7 @@ import org.eclipse.ecsp.oauth2.server.core.authentication.handlers.FederatedIden
 import org.eclipse.ecsp.oauth2.server.core.authentication.providers.CustomUserPwdAuthenticationProvider;
 import org.eclipse.ecsp.oauth2.server.core.authentication.validator.CustomScopeValidator;
 import org.eclipse.ecsp.oauth2.server.core.filter.TenantAwareAuthenticationFilter;
+import org.eclipse.ecsp.oauth2.server.core.metrics.AuthorizationMetricsService;
 import org.eclipse.ecsp.oauth2.server.core.repositories.AuthorizationRequestRepository;
 import org.eclipse.ecsp.oauth2.server.core.repositories.AuthorizationSecurityContextRepository;
 import org.eclipse.ecsp.oauth2.server.core.service.DatabaseAuthorizationRequestRepository;
@@ -113,15 +114,19 @@ public class IgniteSecurityConfig {
     private static final int INT_TWO = 2;
 
     private final TenantConfigurationService tenantConfigurationService;
+    private final AuthorizationMetricsService authorizationMetricsService;
 
     /**
      * Constructor for the IgniteSecurityConfig class. It stores the TenantConfigurationService
-     * for dynamic tenant property resolution.
+     * and AuthorizationMetricsService for dynamic tenant property resolution and metrics collection.
      *
      * @param tenantConfigurationService Service for managing tenant configurations.
+     * @param authorizationMetricsService Service for collecting authorization metrics.
      */
-    public IgniteSecurityConfig(TenantConfigurationService tenantConfigurationService) {
+    public IgniteSecurityConfig(TenantConfigurationService tenantConfigurationService,
+                               AuthorizationMetricsService authorizationMetricsService) {
         this.tenantConfigurationService = tenantConfigurationService;
+        this.authorizationMetricsService = authorizationMetricsService;
     }
 
     /**
@@ -209,7 +214,8 @@ public class IgniteSecurityConfig {
                 customLoginAuthenticationEntryPoint(), new MediaTypeRequestMatcher(MediaType.TEXT_HTML)))
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(withDefaults()));
         CustomUserPwdAuthenticationFilter customUserPwdAuthenticationFilter = new CustomUserPwdAuthenticationFilter(
-                authenticationConfiguration.getAuthenticationManager(), this.tenantConfigurationService);
+                authenticationConfiguration.getAuthenticationManager(), this.tenantConfigurationService,
+                this.authorizationMetricsService);
         customUserPwdAuthenticationFilter.setSecurityContextRepository(databaseSecurityContextRepository);
         customUserPwdAuthenticationFilter
                 .setAuthenticationSuccessHandler(savedRequestAwareAuthenticationSuccessHandler);
@@ -233,7 +239,6 @@ public class IgniteSecurityConfig {
      * @param http HttpSecurity object used for configuring web based security for specific http requests.
      * @throws Exception May throw an exception if there's an error during the configuration.
      */
-    @SuppressWarnings("java:S4502") // CSRF protection intentionally disabled for OAuth2 logout endpoints
     private void setSecurityMachers(HttpSecurity http) throws Exception {
         // Configure security matchers for ALL OAuth2 patterns (authorization server + external IDP)
         http.securityMatchers(matchers -> matchers.requestMatchers(
@@ -250,22 +255,7 @@ public class IgniteSecurityConfig {
                         .anyRequest()
                         .authenticated())
                 .csrf(csrf -> csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
-                        // SonarQube S4502: CSRF protection is intentionally disabled for OAuth2 logout endpoints
-                        // to support OIDC RP-Initiated Logout specification compliance where external clients
-                        // may not have access to CSRF tokens. Security is ensured through:
-                        // 1. Client credential validation
-                        // 2. ID token hint validation  
-                        // 3. Redirect URI validation
-                        // 4. State parameter validation
-                        .ignoringRequestMatchers(request -> {
-                            String requestUri = request.getRequestURI();
-                            String method = request.getMethod();
-                            // Only disable CSRF for POST requests to logout endpoints
-                            // Using safe string operations instead of regex to prevent ReDoS vulnerability
-                            return "POST".equals(method) 
-                                   && (requestUri.endsWith("/oauth2/logout") 
-                                    || requestUri.contains("/oauth2/logout/"));
-                        }));
+                        .ignoringRequestMatchers(LOGOUT_MATCHER_PATTERN));
     }
 
     /**

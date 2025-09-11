@@ -18,16 +18,14 @@
 
 package org.eclipse.ecsp.oauth2.server.core.config;
 
-import org.springframework.jdbc.datasource.lookup.AbstractRoutingDataSource;
-import org.springframework.stereotype.Component;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 /**
- * Custom AbstractRoutingDatasource Configuration for the Multi-tenancy.
+ * This class is a configuration class for the Postgres Database.
  */
-public class MultitenantDataSource extends AbstractRoutingDataSource {
+@Profile("test")
+@Configuration
+public class MultitenantConfiguration {
 
-    @Override
-    protected String determineCurrentLookupKey() {
-        return TenantContext.getCurrentTenant();
-    }
 }

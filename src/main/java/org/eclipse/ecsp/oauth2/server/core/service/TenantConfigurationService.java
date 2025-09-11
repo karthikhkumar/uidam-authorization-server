@@ -104,7 +104,7 @@ public class TenantConfigurationService {
     public boolean tenantExists(String tenantId) {
         // Add null safety check
         if (multiTenantProperties.getTenants() == null) {
-            LOGGER.error("Multi-tenant properties not loaded - cannot check if tenant exists");
+            LOGGER.error("Multi-tenant properties not loaded - cannot check if tenant exists: {}", tenantId);
             return false;
         }
         return tenantIds.contains(tenantId) && multiTenantProperties.getTenants().containsKey(tenantId);
