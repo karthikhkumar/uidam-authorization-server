@@ -33,7 +33,7 @@ public enum MetricType {
     /**
      * Tracks total login attempts per tenant.
      */
-    LOGIN_ATTEMPTS("login.attempts", "Total number of login attempts"),
+    LOGIN_ATTEMPTS("total.login.attempts", "Total number of login attempts"),
     
     /**
      * Tracks successful login attempts per tenant.
@@ -44,13 +44,13 @@ public enum MetricType {
     /**
      * Tracks successful login attempts using internal credentials per tenant.
      */
-    SUCCESS_LOGIN_BY_INTERNAL_CREDENTIALS("success.login.by.internal.credentials",
+    SUCCESS_LOGIN_BY_INTERNAL_CREDENTIALS("success.login.attempts.by.internal.credentials",
                                            "Total number of successful login attempts using internal credentials"),
     
     /**
      * Tracks successful login attempts using external IDP credentials per tenant.
      */
-    SUCCESS_LOGIN_BY_EXTERNAL_IDP_CREDENTIALS("success.login.by.external.idp.credentials",
+    SUCCESS_LOGIN_BY_EXTERNAL_IDP_CREDENTIALS("success.login.attempts.by.external.idp.credentials",
             "Total number of successful login attempts using external IDP credentials"),
     
     /**
@@ -62,37 +62,37 @@ public enum MetricType {
     /**
      * Tracks failed login attempts due to captcha failure per tenant.
      */
-    FAILURE_LOGIN_CAPTCHA("failure.login.captcha",
+    FAILURE_LOGIN_CAPTCHA("failure.login.attempts.captcha",
                           "Total number of failed login attempts due to captcha failure"),
     
     /**
      * Tracks failed login attempts due to wrong password per tenant.
      */
-    FAILURE_LOGIN_WRONG_PASSWORD("failure.login.wrong.password",
+    FAILURE_LOGIN_WRONG_PASSWORD("failure.login.attempts.wrong.password",
                                   "Total number of failed login attempts due to wrong password"),
     
     /**
      * Tracks failed login attempts due to user not found per tenant.
      */
-    FAILURE_LOGIN_USER_NOT_FOUND("failure.login.user.not.found",
+    FAILURE_LOGIN_USER_NOT_FOUND("failure.login.attempts.user.not.found",
                                   "Total number of failed login attempts due to user not found"),
 
     /**
      * Tracks failed login attempts due to account not found per tenant.
      */
-    FAILURE_LOGIN_ACCOUNT_NOT_FOUND("failure.login.account.not.found",
+    FAILURE_LOGIN_ACCOUNT_NOT_FOUND("failure.login.attempts.account.not.found",
                                      "Total number of failed login attempts due to account not found"),
     
     /**
      * Tracks failed login attempts due to user being blocked per tenant.
      */
-    FAILURE_LOGIN_USER_BLOCKED("failure.login.user.blocked",
+    FAILURE_LOGIN_USER_BLOCKED("failure.login.attempts.user.blocked",
                                 "Total number of failed login attempts due to user being blocked"),
     
     /**
      * Tracks failed login attempts due to account being locked per tenant.
      */
-    FAILURE_LOGIN_ACCOUNT_LOCKED("failure.login.account.locked",
+    FAILURE_LOGIN_ACCOUNT_LOCKED("failure.login.attempts.account.locked",
                                   "Total number of failed login attempts due to account being locked");
 
     private final String metricName;
