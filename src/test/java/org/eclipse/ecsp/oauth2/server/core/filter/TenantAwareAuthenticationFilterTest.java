@@ -175,7 +175,7 @@ class TenantAwareAuthenticationFilterTest {
     }
 
     @Test
-    void doFilterInternal_shouldContinueFilterChain_whenExceptionOccurs() throws ServletException, IOException {
+    void doFilterInternal_shouldRedirectToError_whenExceptionOccurs() throws ServletException, IOException {
         // Arrange
         when(request.getRequestURI()).thenReturn("/login");
         when(tenantConfigurationService.getTenantProperties()).thenThrow(new RuntimeException("Test exception"));
@@ -186,8 +186,9 @@ class TenantAwareAuthenticationFilterTest {
             // Act
             filter.doFilterInternal(request, response, filterChain);
 
-            // Assert - Should continue filter chain even on exception
-            verify(filterChain).doFilter(request, response);
+            // Assert - Should redirect to error page when authentication method check fails (fail-secure behavior)
+            verify(response).sendRedirect(contains("error=no_auth_methods_available"));
+            verify(filterChain, never()).doFilter(request, response);
         }
     }
 

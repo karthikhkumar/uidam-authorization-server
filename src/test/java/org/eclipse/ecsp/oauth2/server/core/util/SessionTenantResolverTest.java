@@ -32,6 +32,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -161,23 +162,23 @@ class SessionTenantResolverTest {
     }
 
     @Test
-    void setCurrentTenant_shouldIgnoreEmptyTenant() {
-        // When
-        SessionTenantResolver.setCurrentTenant("");
+    void setCurrentTenant_shouldThrowExceptionForEmptyTenant() {
+        // When & Then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, 
+            () -> SessionTenantResolver.setCurrentTenant(""));
         
-        // Then
+        assertEquals("Tenant ID cannot be null or empty", exception.getMessage());
         assertFalse(TenantContext.hasTenant());
-        requestContextHolderMock.verifyNoInteractions();
     }
 
     @Test
-    void setCurrentTenant_shouldIgnoreNullTenant() {
-        // When
-        SessionTenantResolver.setCurrentTenant(null);
+    void setCurrentTenant_shouldThrowExceptionForNullTenant() {
+        // When & Then
+        IllegalArgumentException exception = assertThrows(IllegalArgumentException.class, 
+            () -> SessionTenantResolver.setCurrentTenant(null));
         
-        // Then
+        assertEquals("Tenant ID cannot be null or empty", exception.getMessage());
         assertFalse(TenantContext.hasTenant());
-        requestContextHolderMock.verifyNoInteractions();
     }
 
     @Test

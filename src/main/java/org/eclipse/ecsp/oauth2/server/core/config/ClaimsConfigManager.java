@@ -89,7 +89,7 @@ import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2C
  */
 @Configuration
 public class ClaimsConfigManager {
-    private static final int INT_TWO = 2;
+    private static final int TENANT_PREFIX_PARTS = 2;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ClaimsConfigManager.class);
 
@@ -209,7 +209,14 @@ public class ClaimsConfigManager {
         // Extract original registration ID for the method call
         String originalRegistrationId = idpClient.getRegistrationId();
         
-        String federatedUserName = originalRegistrationId + "_" + userName;
+        // Use StringBuilder for better performance when constructing federated username
+        int expectedLength = originalRegistrationId.length() + userName.length() + 1;
+        StringBuilder federatedUserNameBuilder = new StringBuilder(expectedLength);
+        String federatedUserName = federatedUserNameBuilder
+                .append(originalRegistrationId)
+                .append("_")
+                .append(userName)
+                .toString();
 
         return getFederatedUserDetails(originalRegistrationId, federatedUserName, idpClient, claims);
     }
@@ -245,8 +252,8 @@ public class ClaimsConfigManager {
             throwInvalidRegistrationFormatException(tenantPrefixedRegistrationId);
         }
         
-        String[] parts = tenantPrefixedRegistrationId.split("-", INT_TWO);
-        if (parts.length != INT_TWO || parts[0].isEmpty() || parts[1].isEmpty()) {
+        String[] parts = tenantPrefixedRegistrationId.split("-", TENANT_PREFIX_PARTS);
+        if (parts.length != TENANT_PREFIX_PARTS || parts[0].isEmpty() || parts[1].isEmpty()) {
             throwInvalidRegistrationFormatException(tenantPrefixedRegistrationId);
         }
 
@@ -276,9 +283,14 @@ public class ClaimsConfigManager {
      * @throws OAuth2AuthenticationException Always throws this exception with consistent error message
      */
     private void throwInvalidTenantAccessException(String tenantPrefix, String currentTenantId) {
+        StringBuilder errorMessage = new StringBuilder("Access denied: Registration ID belongs to tenant '")
+                .append(tenantPrefix)
+                .append("' but current tenant is '")
+                .append(currentTenantId)
+                .append("'");
+        
         throw new OAuth2AuthenticationException(
-                new OAuth2Error("invalid_tenant_access", "Access denied: Registration ID belongs to tenant '"
-                        + tenantPrefix + "' but current tenant is '" + currentTenantId + "'", null));
+                new OAuth2Error("invalid_tenant_access", errorMessage.toString(), null));
     }
     
     /**
@@ -288,10 +300,13 @@ public class ClaimsConfigManager {
      * @throws OAuth2AuthenticationException Always throws this exception with consistent error message
      */
     private void throwInvalidRegistrationFormatException(String registrationId) {
+        StringBuilder errorMessage = new StringBuilder("Registration ID must be in format 'tenant-provider' but was: ")
+                .append(registrationId);
+        
         throw new OAuth2AuthenticationException(
             new OAuth2Error(
                 "invalid_registration_format",
-                "Registration ID must be in format 'tenant-provider' but was: " + registrationId,
+                errorMessage.toString(),
                 null
             )
         );

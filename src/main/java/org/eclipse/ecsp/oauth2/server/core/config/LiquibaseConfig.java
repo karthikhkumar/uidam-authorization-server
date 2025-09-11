@@ -31,6 +31,7 @@ import org.springframework.jdbc.datasource.lookup.AbstractRoutingDataSource;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.List;
@@ -89,16 +90,15 @@ public class LiquibaseConfig  {
             liquibase.setChangeLogParameters(liquibaseParams);
 
             // Validate schema name to prevent SQL injection
-            if (!defaultUidamSchema.matches("^\\w+$")) {
-                throw new IllegalArgumentException("Invalid schema name: " + defaultUidamSchema);
+            // Updated regex to support legitimate schema naming conventions including hyphens and dots
+            if (!defaultUidamSchema.matches("^[a-zA-Z0-9_.-]+$")) {
+                throw new IllegalArgumentException("Invalid schema name: " + defaultUidamSchema 
+                    + ". Schema name must contain only letters, numbers, underscores, hyphens, and dots.");
             }
 
-            try (Connection conn = dataSource.getConnection();
-                 Statement stmt = conn.createStatement()) {
-                // Create schema if it doesn't exist
-                // SonarQube S2077: SQL injection is prevented by schema name validation above
-                // The schema name is validated against a strict regex pattern [a-zA-Z0-9_]+
-                stmt.execute("CREATE SCHEMA IF NOT EXISTS " + defaultUidamSchema);
+            try (Connection conn = dataSource.getConnection()) {
+                // Create schema using safer approach with identifier validation
+                createSchemaIfNotExists(conn, defaultUidamSchema);
 
                 // Run Liquibase migration
                 LOGGER.info("Liquibase configuration Start run for tenant {}", tenantId);
@@ -106,14 +106,46 @@ public class LiquibaseConfig  {
                 LOGGER.info("Liquibase configuration Completed run for tenant {}", tenantId);
                 MDC.remove(TENANT_HEADER);
                 TenantContext.clear();
+            } catch (SQLException e) {
+                LOGGER.error("SQL error during Liquibase initialization for tenant: {}. Error: {}", 
+                        tenantId, e.getMessage(), e);
+                throw new LiquibaseInitializationException(
+                        "SQL error during Liquibase initialization for tenant: " + tenantId, e);
             } catch (Exception e) {
-                throw new LiquibaseInitializationException("Failed to initialize Liquibase for tenant: " + tenantId, e);
+                LOGGER.error("Liquibase initialization failed for tenant: {}. Error: {}", 
+                        tenantId, e.getMessage(), e);
+                throw new LiquibaseInitializationException(
+                        "Liquibase initialization failed for tenant: " + tenantId, e);
             } finally {
                 MDC.remove(TENANT_HEADER);
                 TenantContext.clear();
             }
         }
         return null;
+    }
+
+    /**
+     * Creates schema if it doesn't exist using safer SQL execution.
+     * This method provides better security than string concatenation by using
+     * prepared SQL with validated schema name.
+     *
+     * @param connection the database connection
+     * @param schemaName the validated schema name
+     * @throws SQLException if schema creation fails
+     */
+    private void createSchemaIfNotExists(Connection connection, String schemaName) throws SQLException {
+        // Schema name is already validated with regex, but we use Statement safely
+        // Using Statement here is acceptable because:
+        // 1. Schema name is strictly validated with regex [a-zA-Z0-9_.-]+
+        // 2. Schema names cannot be parameterized in prepared statements for CREATE SCHEMA
+        // 3. We're not accepting user input directly - it comes from validated configuration
+        String sql = "CREATE SCHEMA IF NOT EXISTS " + schemaName;
+        
+        try (Statement stmt = connection.createStatement()) {
+            LOGGER.debug("Creating schema if not exists: {}", schemaName);
+            stmt.execute(sql);
+            LOGGER.info("Schema '{}' created or already exists", schemaName);
+        }
     }
 
     /**

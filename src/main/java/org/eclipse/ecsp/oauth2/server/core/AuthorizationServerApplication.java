@@ -33,6 +33,13 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * The AuthorizationServerApplication is the main class for the microservice.
+ * 
+ * <p>Note: LiquibaseAutoConfiguration is excluded because this application implements
+ * custom multi-tenant database schema management through {@link org.eclipse.ecsp.oauth2.server.core.config.LiquibaseConfig}.
+ * The custom configuration handles schema creation and migration per tenant, which is incompatible 
+ * with Spring Boot's default Liquibase auto-configuration that assumes a single database schema.
+ * This exclusion ensures that database schema management is properly handled for each tenant
+ * in the multi-tenant architecture without conflicts from the default auto-configuration.
  */
 @ComponentScan(basePackages = {"org.eclipse.ecsp"})
 @EnableConfigurationProperties(MultiTenantProperties.class)
