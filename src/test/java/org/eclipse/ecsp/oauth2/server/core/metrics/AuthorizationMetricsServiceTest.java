@@ -27,7 +27,7 @@ class AuthorizationMetricsServiceTest {
     void testIncrementMetrics() {
         metricsService.incrementMetrics(MetricType.LOGIN_ATTEMPTS, "tag1", "value1");
 
-        Counter counter = meterRegistry.find("login.attempts").tags("tag1", "value1").counter();
+        Counter counter = meterRegistry.find("total.login.attempts").tags("tag1", "value1").counter();
         assertNotNull(counter);
         assertEquals(EXPECTED_COUNT_AFTER_SINGLE_INCREMENT, counter.count());
     }
@@ -53,7 +53,7 @@ class AuthorizationMetricsServiceTest {
                                             "idpZ",
                                                       MetricType.SUCCESS_LOGIN_BY_EXTERNAL_IDP_CREDENTIALS);
 
-        Counter counter = meterRegistry.find("success.login.by.external.idp.credentials")
+        Counter counter = meterRegistry.find("success.login.attempts.by.external.idp.credentials")
                 .tags(TENANT_ID_TAG, "tenantY", "id_provider", "idpZ")
                 .counter();
 
@@ -66,7 +66,7 @@ class AuthorizationMetricsServiceTest {
         metricsService.incrementMetrics(MetricType.FAILURE_LOGIN_CAPTCHA, "tagA", "valueA");
         metricsService.incrementMetrics(MetricType.FAILURE_LOGIN_CAPTCHA, "tagA", "valueA");
 
-        Counter counter = meterRegistry.find("failure.login.captcha").tags("tagA", "valueA").counter();
+        Counter counter = meterRegistry.find("failure.login.attempts.captcha").tags("tagA", "valueA").counter();
         assertNotNull(counter);
         assertEquals(EXPECTED_COUNT_AFTER_DOUBLE_INCREMENT, counter.count());
     }
@@ -76,10 +76,10 @@ class AuthorizationMetricsServiceTest {
         metricsService.incrementMetricsForTenantAndIdp("tenantZ", "idpQ", 
             MetricType.SUCCESS_LOGIN_BY_INTERNAL_CREDENTIALS, MetricType.FAILURE_LOGIN_WRONG_PASSWORD);
 
-        Counter counter1 = meterRegistry.find("success.login.by.internal.credentials")
+        Counter counter1 = meterRegistry.find("success.login.attempts.by.internal.credentials")
                 .tags(TENANT_ID_TAG, "tenantZ", "id_provider", "idpQ")
                 .counter();
-        Counter counter2 = meterRegistry.find("failure.login.wrong.password")
+        Counter counter2 = meterRegistry.find("failure.login.attempts.wrong.password")
                 .tags(TENANT_ID_TAG, "tenantZ", "id_provider", "idpQ")
                 .counter();
 

@@ -125,7 +125,9 @@ public class CustomUserPwdAuthenticationProvider implements AuthenticationProvid
                 userDetailsResponse.getCaptcha().get(USER_ENFORCE_AFTER_NO_OF_FAILURES));
             if (loginAttempt >= maxAllowedLoginAttempt) {
                 LOGGER.info("{} max allowed login attempt used ", maxAllowedLoginAttempt);
-                metricsService.incrementMetricsForTenant(tenantId, MetricType.FAILURE_LOGIN_USER_BLOCKED);
+                metricsService.incrementMetricsForTenant(tenantId,
+                                                        MetricType.FAILURE_LOGIN_USER_BLOCKED,
+                                                        MetricType.FAILURE_LOGIN_ATTEMPTS);
                 throw new BadCredentialsException(USER_LOCKED_ERROR);
             }
             throw new BadCredentialsException("Bad credentials");

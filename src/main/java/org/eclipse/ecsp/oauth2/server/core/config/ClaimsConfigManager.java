@@ -225,7 +225,7 @@ public class ClaimsConfigManager {
                                                                         claims);
         authorizationMetricsService.incrementMetricsForTenantAndIdp(
                                                                 getCurrentTenantProperties().getTenantId(),
-                                                                idpClient.getClientName(),
+                                                                idpClient.getClientId(),
                                                                 MetricType.SUCCESS_LOGIN_BY_EXTERNAL_IDP_CREDENTIALS);
         return userDetailsResponse;
     }
