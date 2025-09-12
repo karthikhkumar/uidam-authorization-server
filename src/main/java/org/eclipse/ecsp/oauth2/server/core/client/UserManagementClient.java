@@ -32,6 +32,8 @@ import org.eclipse.ecsp.oauth2.server.core.exception.PasswordRecoveryException;
 import org.eclipse.ecsp.oauth2.server.core.exception.UidamApplicationException;
 import org.eclipse.ecsp.oauth2.server.core.exception.UserNotFoundException;
 import org.eclipse.ecsp.oauth2.server.core.interceptor.ClientAddCorrelationIdInterceptor;
+import org.eclipse.ecsp.oauth2.server.core.metrics.AuthorizationMetricsService;
+import org.eclipse.ecsp.oauth2.server.core.metrics.MetricType;
 import org.eclipse.ecsp.oauth2.server.core.request.dto.BaseUserDto;
 import org.eclipse.ecsp.oauth2.server.core.request.dto.FederatedUserDto;
 import org.eclipse.ecsp.oauth2.server.core.request.dto.UserDto;
@@ -46,6 +48,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
@@ -94,6 +97,7 @@ public class UserManagementClient {
     private final TenantConfigurationService tenantConfigurationService;
     private final CaptchaServiceImpl captchaServiceImpl;
     private final WebClient webClient;
+    private final AuthorizationMetricsService metricsService;
 
     /**
      * Constructor for UserManagementClient. It initializes the tenant configuration service for dynamic tenant
@@ -104,9 +108,11 @@ public class UserManagementClient {
      */
     @Autowired
     public UserManagementClient(TenantConfigurationService tenantConfigurationService,
-            CaptchaServiceImpl captchaServiceImpl) {
+            CaptchaServiceImpl captchaServiceImpl,
+            AuthorizationMetricsService metricsService) {
         this.tenantConfigurationService = tenantConfigurationService;
         this.captchaServiceImpl = captchaServiceImpl;
+        this.metricsService = metricsService;
         this.webClient = null; // Will use dynamic WebClient creation
     }
 
@@ -118,10 +124,12 @@ public class UserManagementClient {
      * @param webClient the WebClient to use for HTTP requests
      */
     public UserManagementClient(TenantConfigurationService tenantConfigurationService,
-            CaptchaServiceImpl captchaServiceImpl, WebClient webClient) {
+            CaptchaServiceImpl captchaServiceImpl, WebClient webClient,
+            AuthorizationMetricsService metricsService) {
         this.tenantConfigurationService = tenantConfigurationService;
         this.captchaServiceImpl = captchaServiceImpl;
         this.webClient = webClient;
+        this.metricsService = metricsService;
     }
 
     /**
@@ -184,18 +192,15 @@ public class UserManagementClient {
      */
     public UserDetailsResponse getUserDetailsByUsername(String username, String accountName) {
         LOGGER.info("Fetching user details for username {} from user-mgmt account Name {}", username, accountName);
-
         try {
             TenantProperties tenantProperties = getCurrentTenantProperties();
             WebClient currentWebClient = getWebClientForCurrentTenant();
-
             String uri = tenantProperties.getExternalUrls().get(TENANT_EXTERNAL_URLS_USER_BY_USERNAME_ENDPOINT);
             if (!StringUtils.hasText(accountName)) {
                 accountName = tenantProperties.getAccount().getAccountName();
             }
             LOGGER.debug("Account name {}", accountName);
             UserDetailsResponse userDetailsResponse = null;
-
             userDetailsResponse = currentWebClient.method(HttpMethod.GET).uri(uri, username)
                     .header(ACCOUNT_NAME_HEADER, accountName)
                     .header(TENANT_ID_HEADER, tenantProperties.getTenantId())
@@ -215,30 +220,19 @@ public class UserManagementClient {
             } catch (IllegalStateException e) {
                 LOGGER.debug("Could not decode response body: {}", e.getMessage());
             }
-            String errorCode;
-            String errorDesc = "";
-            if (userErrorResponse != null) {
-                if (HttpStatus.NOT_FOUND == ex.getStatusCode()) {
-                    errorCode = CustomOauth2TokenGenErrorCodes.USER_NOT_FOUND.name();
-                    errorDesc = userErrorResponse.getMessage();
-                } else if (HttpStatus.FORBIDDEN == ex.getStatusCode()) {
-                    errorCode = CustomOauth2TokenGenErrorCodes.USER_NOT_ACTIVE.name();
-                    errorDesc = CustomOauth2TokenGenErrorCodes.USER_NOT_ACTIVE.getDescription();
-                } else {
-                    errorCode = OAuth2ErrorCodes.SERVER_ERROR;
-                    errorDesc = userErrorResponse.getMessage();
-                }
-
-            } else {
-                errorCode = OAuth2ErrorCodes.SERVER_ERROR;
-                errorDesc = "Unable to validate " + OAuth2ParameterNames.USERNAME;
-            }
-            OAuth2Error error = new OAuth2Error(errorCode, errorDesc, null);
+            TenantProperties tenantProperties = getCurrentTenantProperties();
+            String tenantId = tenantProperties.getTenantId();
+            String errorMessage = userErrorResponse != null ? userErrorResponse.getMessage() : null;
+            OAuth2Error error = handleUserFetchError(ex.getStatusCode(), errorMessage, tenantId);
+            metricsService.incrementMetricsForTenant(tenantId, MetricType.FAILURE_LOGIN_ATTEMPTS);
             throw new OAuth2AuthenticationException(error);
         } catch (Exception ex) {
             LOGGER.error("error while fetching user details for username {} from user-mgmt, ex: {}", username, ex);
             OAuth2Error error = new OAuth2Error(OAuth2ErrorCodes.SERVER_ERROR,
                     "Unable to validate " + OAuth2ParameterNames.USERNAME, null);
+            TenantProperties tenantProperties = getCurrentTenantProperties();
+            String tenantId = tenantProperties.getTenantId();
+            metricsService.incrementMetricsForTenant(tenantId, MetricType.FAILURE_LOGIN_ATTEMPTS);
             throw new OAuth2AuthenticationException(error);
         }
     }
@@ -528,5 +522,38 @@ public class UserManagementClient {
             throw new OAuth2AuthenticationException(error);
         }
         return null;
+    }
+
+    /**
+     * Handles user fetch errors and creates appropriate OAuth2Error with metrics tracking.
+     *
+     * @param statusCode the HTTP status code from the error response
+     * @param errorMessage the error message from the user management service (can be null)
+     * @param tenantId the tenant ID for metrics tracking
+     * @return OAuth2Error with appropriate error code and description
+     */
+    private OAuth2Error handleUserFetchError(HttpStatusCode statusCode, String errorMessage, String tenantId) {
+        String errorCode;
+        String errorDesc;
+
+        if (errorMessage != null) {
+            if (HttpStatus.NOT_FOUND.isSameCodeAs(statusCode)) {
+                errorCode = CustomOauth2TokenGenErrorCodes.USER_NOT_FOUND.name();
+                errorDesc = errorMessage;
+                metricsService.incrementMetricsForTenant(tenantId, MetricType.FAILURE_LOGIN_USER_NOT_FOUND);
+            } else if (HttpStatus.FORBIDDEN.isSameCodeAs(statusCode)) {
+                errorCode = CustomOauth2TokenGenErrorCodes.USER_NOT_ACTIVE.name();
+                errorDesc = CustomOauth2TokenGenErrorCodes.USER_NOT_ACTIVE.getDescription();
+                metricsService.incrementMetricsForTenant(tenantId, MetricType.FAILURE_LOGIN_USER_BLOCKED);
+            } else {
+                errorCode = OAuth2ErrorCodes.SERVER_ERROR;
+                errorDesc = errorMessage;
+            }
+        } else {
+            errorCode = OAuth2ErrorCodes.SERVER_ERROR;
+            errorDesc = "Unable to validate " + OAuth2ParameterNames.USERNAME;
+        }
+
+        return new OAuth2Error(errorCode, errorDesc, null);
     }
 }

@@ -28,6 +28,7 @@ import org.eclipse.ecsp.oauth2.server.core.authentication.handlers.FederatedIden
 import org.eclipse.ecsp.oauth2.server.core.authentication.providers.CustomUserPwdAuthenticationProvider;
 import org.eclipse.ecsp.oauth2.server.core.authentication.validator.CustomScopeValidator;
 import org.eclipse.ecsp.oauth2.server.core.filter.TenantAwareAuthenticationFilter;
+import org.eclipse.ecsp.oauth2.server.core.metrics.AuthorizationMetricsService;
 import org.eclipse.ecsp.oauth2.server.core.repositories.AuthorizationRequestRepository;
 import org.eclipse.ecsp.oauth2.server.core.repositories.AuthorizationSecurityContextRepository;
 import org.eclipse.ecsp.oauth2.server.core.service.DatabaseAuthorizationRequestRepository;
@@ -113,15 +114,19 @@ public class IgniteSecurityConfig {
     private static final int INT_TWO = 2;
 
     private final TenantConfigurationService tenantConfigurationService;
+    private final AuthorizationMetricsService authorizationMetricsService;
 
     /**
      * Constructor for the IgniteSecurityConfig class. It stores the TenantConfigurationService
-     * for dynamic tenant property resolution.
+     * and AuthorizationMetricsService for dynamic tenant property resolution and metrics collection.
      *
      * @param tenantConfigurationService Service for managing tenant configurations.
+     * @param authorizationMetricsService Service for collecting authorization metrics.
      */
-    public IgniteSecurityConfig(TenantConfigurationService tenantConfigurationService) {
+    public IgniteSecurityConfig(TenantConfigurationService tenantConfigurationService,
+                               AuthorizationMetricsService authorizationMetricsService) {
         this.tenantConfigurationService = tenantConfigurationService;
+        this.authorizationMetricsService = authorizationMetricsService;
     }
 
     /**
@@ -209,7 +214,8 @@ public class IgniteSecurityConfig {
                 customLoginAuthenticationEntryPoint(), new MediaTypeRequestMatcher(MediaType.TEXT_HTML)))
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(withDefaults()));
         CustomUserPwdAuthenticationFilter customUserPwdAuthenticationFilter = new CustomUserPwdAuthenticationFilter(
-                authenticationConfiguration.getAuthenticationManager(), this.tenantConfigurationService);
+                authenticationConfiguration.getAuthenticationManager(), this.tenantConfigurationService,
+                this.authorizationMetricsService);
         customUserPwdAuthenticationFilter.setSecurityContextRepository(databaseSecurityContextRepository);
         customUserPwdAuthenticationFilter
                 .setAuthenticationSuccessHandler(savedRequestAwareAuthenticationSuccessHandler);
