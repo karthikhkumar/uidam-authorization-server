@@ -19,13 +19,22 @@
 package org.eclipse.ecsp.oauth2.server.core.config;
 
 import org.springframework.jdbc.datasource.lookup.AbstractRoutingDataSource;
-import org.springframework.stereotype.Component;
 
 /**
  * Custom AbstractRoutingDatasource Configuration for the Multi-tenancy.
+ * This class routes database connections based on the current tenant context,
+ * enabling multi-tenant data isolation at the database level.
  */
 public class MultitenantDataSource extends AbstractRoutingDataSource {
 
+    /**
+     * Determines the current lookup key for routing to the appropriate datasource.
+     * This method is called by Spring's AbstractRoutingDataSource to determine
+     * which target datasource should be used for the current request.
+     *
+     * @return the current tenant identifier used as the datasource lookup key,
+     *         or null if no tenant is currently set in the context
+     */
     @Override
     protected String determineCurrentLookupKey() {
         return TenantContext.getCurrentTenant();
