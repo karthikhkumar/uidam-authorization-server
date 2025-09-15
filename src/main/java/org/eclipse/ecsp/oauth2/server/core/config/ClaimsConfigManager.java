@@ -225,15 +225,19 @@ public class ClaimsConfigManager {
                 .append("_")
                 .append(userName)
                 .toString();
-
+        String tenantId = getCurrentTenantProperties().getTenantId();
         UserDetailsResponse userDetailsResponse = getFederatedUserDetails(originalRegistrationId,
                                                                         federatedUserName,
                                                                         idpClient,
                                                                         claims);
         authorizationMetricsService.incrementMetricsForTenantAndIdp(
-                                                                getCurrentTenantProperties().getTenantId(),
-                                                                idpClient.getClientId(),
+                                                                tenantId,
+                                                                idpClient.getRegistrationId(),
                                                                 MetricType.SUCCESS_LOGIN_BY_EXTERNAL_IDP_CREDENTIALS);
+        authorizationMetricsService.incrementMetricsForTenant(
+                                                                tenantId,
+                                                                MetricType.SUCCESS_LOGIN_ATTEMPTS,
+                                                                MetricType.TOTAL_LOGIN_ATTEMPTS);
         return userDetailsResponse;
     }
 

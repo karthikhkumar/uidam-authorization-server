@@ -107,7 +107,7 @@ public class CustomUserPwdAuthenticationProvider implements AuthenticationProvid
         String password = customUserPwdAuthenticationToken.getCredentials() + "";
         String accountName = customUserPwdAuthenticationToken.getAccountName();
         LOGGER.debug("Authenticating user details for username {}", username);
-        metricsService.incrementMetricsForTenant(tenantId, MetricType.LOGIN_ATTEMPTS);
+        metricsService.incrementMetricsForTenant(tenantId, MetricType.TOTAL_LOGIN_ATTEMPTS);
         UserDetailsResponse userDetailsResponse = userManagementClient.getUserDetailsByUsername(username, accountName);
         String encryptedUserEnteredPassword = PasswordUtils.getSecurePassword(password,
             userDetailsResponse.getPasswordEncoder(), userDetailsResponse.getSalt());

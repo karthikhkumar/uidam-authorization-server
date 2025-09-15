@@ -124,14 +124,16 @@ public class CaptchaServiceImpl implements CaptchaService {
                     }
                     metricsService.incrementMetricsForTenant(tenantId,
                                                             MetricType.FAILURE_LOGIN_CAPTCHA,
-                                                            MetricType.FAILURE_LOGIN_ATTEMPTS);
+                                                            MetricType.FAILURE_LOGIN_ATTEMPTS,
+                                                            MetricType.TOTAL_LOGIN_ATTEMPTS);
                     throw new ReCaptchaInvalidException("reCaptcha was not successfully validated");
                 }
             }
         } catch (RestClientException rce) {
             metricsService.incrementMetricsForTenant(tenantId,
                                                     MetricType.FAILURE_LOGIN_CAPTCHA,
-                                                    MetricType.FAILURE_LOGIN_ATTEMPTS);
+                                                    MetricType.FAILURE_LOGIN_ATTEMPTS,
+                                                    MetricType.TOTAL_LOGIN_ATTEMPTS);
             throw new ReCaptchaUnavailableException("ReCaptcha service unavailable at this time. "
                 + "Please try again later.", rce);
         } finally {

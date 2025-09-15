@@ -25,7 +25,7 @@ class AuthorizationMetricsServiceTest {
 
     @Test
     void testIncrementMetrics() {
-        metricsService.incrementMetrics(MetricType.LOGIN_ATTEMPTS, "tag1", "value1");
+        metricsService.incrementMetrics(MetricType.TOTAL_LOGIN_ATTEMPTS, "tag1", "value1");
 
         Counter counter = meterRegistry.find("total.login.attempts").tags("tag1", "value1").counter();
         assertNotNull(counter);
