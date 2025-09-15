@@ -133,6 +133,7 @@ public class LiquibaseConfig  {
      * @param schemaName the validated schema name
      * @throws SQLException if schema creation fails
      */
+    @SuppressWarnings("java:S2077") // SQL injection prevented by strict schema name validation
     private void createSchemaIfNotExists(Connection connection, String schemaName) throws SQLException {
         // Schema name is already validated with regex, but we use Statement safely
         // Using Statement here is acceptable because:
