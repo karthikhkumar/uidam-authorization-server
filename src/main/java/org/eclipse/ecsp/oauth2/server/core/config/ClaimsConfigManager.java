@@ -192,6 +192,10 @@ public class ClaimsConfigManager {
      */
     private UserDetailsResponse getUserDetailsForFederatedUser(OAuth2AuthenticationToken oauth2AuthenticationToken) {
         String tenantPrefixedRegistrationId = oauth2AuthenticationToken.getAuthorizedClientRegistrationId();
+        String tenantId = getCurrentTenantProperties().getTenantId();
+        authorizationMetricsService.incrementMetricsForTenant(
+                                                            tenantId,
+                                                            MetricType.TOTAL_LOGIN_ATTEMPTS);
         
         // Find external IDP client with tenant validation and registration ID extraction
         ExternalIdpRegisteredClient idpClient = findExternalIdpClient(tenantPrefixedRegistrationId);
@@ -225,7 +229,7 @@ public class ClaimsConfigManager {
                 .append("_")
                 .append(userName)
                 .toString();
-        String tenantId = getCurrentTenantProperties().getTenantId();
+        
         UserDetailsResponse userDetailsResponse = getFederatedUserDetails(originalRegistrationId,
                                                                         federatedUserName,
                                                                         idpClient,
@@ -236,8 +240,7 @@ public class ClaimsConfigManager {
                                                                 MetricType.SUCCESS_LOGIN_BY_EXTERNAL_IDP_CREDENTIALS);
         authorizationMetricsService.incrementMetricsForTenant(
                                                                 tenantId,
-                                                                MetricType.SUCCESS_LOGIN_ATTEMPTS,
-                                                                MetricType.TOTAL_LOGIN_ATTEMPTS);
+                                                                MetricType.SUCCESS_LOGIN_ATTEMPTS);
         return userDetailsResponse;
     }
 
