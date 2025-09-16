@@ -33,8 +33,8 @@ public enum MetricType {
     /**
      * Tracks total login attempts per tenant.
      */
-    LOGIN_ATTEMPTS("total.login.attempts", "Total number of login attempts"),
-
+    TOTAL_LOGIN_ATTEMPTS("total.login.attempts", "Total number of login attempts"),
+    
     /**
      * Tracks successful login attempts per tenant.
      */
