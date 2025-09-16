@@ -64,6 +64,9 @@ class IgniteSecurityConfigTest {
     private TenantConfigurationService tenantConfigurationService;
 
     @Mock
+    private org.eclipse.ecsp.oauth2.server.core.metrics.AuthorizationMetricsService authorizationMetricsService;
+
+    @Mock
     private RegisteredClientRepository registeredClientRepository;
 
     @Mock
@@ -109,7 +112,8 @@ class IgniteSecurityConfigTest {
 
     @BeforeEach
     void setUp() {
-        config = new IgniteSecurityConfig(tenantConfigurationService);
+        config = new IgniteSecurityConfig(tenantConfigurationService,
+                                        authorizationMetricsService);
         
         // Set required field values using ReflectionTestUtils
         ReflectionTestUtils.setField(config, "sessionTimeout", "1800");

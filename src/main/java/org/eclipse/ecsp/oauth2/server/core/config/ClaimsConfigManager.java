@@ -25,6 +25,8 @@ import org.eclipse.ecsp.oauth2.server.core.client.UserManagementClient;
 import org.eclipse.ecsp.oauth2.server.core.common.CustomOauth2TokenGenErrorCodes;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.ExternalIdpRegisteredClient;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
+import org.eclipse.ecsp.oauth2.server.core.metrics.AuthorizationMetricsService;
+import org.eclipse.ecsp.oauth2.server.core.metrics.MetricType;
 import org.eclipse.ecsp.oauth2.server.core.request.dto.FederatedUserDto;
 import org.eclipse.ecsp.oauth2.server.core.response.UserDetailsResponse;
 import org.eclipse.ecsp.oauth2.server.core.service.ClaimMappingService;
@@ -96,6 +98,7 @@ public class ClaimsConfigManager {
     private final TenantConfigurationService tenantConfigurationService;
     private final UserManagementClient userManagementClient;
     private final ClaimMappingService claimMappingService;
+    private final AuthorizationMetricsService authorizationMetricsService;
 
     /**
      * Constructor for ClaimsConfigManager. It initializes the tenant configuration service
@@ -108,10 +111,12 @@ public class ClaimsConfigManager {
     @Autowired
     public ClaimsConfigManager(TenantConfigurationService tenantConfigurationService,
             ClaimMappingService claimMappingService,
-            UserManagementClient userManagementClient) {
+            UserManagementClient userManagementClient,
+            AuthorizationMetricsService authorizationMetricsService) {
         this.tenantConfigurationService = tenantConfigurationService;
         this.claimMappingService = claimMappingService;
         this.userManagementClient = userManagementClient;
+        this.authorizationMetricsService = authorizationMetricsService;
     }
 
     
@@ -154,6 +159,9 @@ public class ClaimsConfigManager {
                     userDetailsResponse = userManagementClient.getUserDetailsByUsername(
                             customUserPwdAuthenticationToken.getName(),
                             customUserPwdAuthenticationToken.getAccountName());
+                    authorizationMetricsService.incrementMetricsForTenant(
+                            getCurrentTenantProperties().getTenantId(),
+                            MetricType.SUCCESS_LOGIN_BY_INTERNAL_CREDENTIALS);
                 }
                 if (context.getPrincipal() instanceof OAuth2AuthenticationToken oauth2AuthenticationToken) {
                     LOGGER.debug("Federated user authentication");
@@ -184,6 +192,10 @@ public class ClaimsConfigManager {
      */
     private UserDetailsResponse getUserDetailsForFederatedUser(OAuth2AuthenticationToken oauth2AuthenticationToken) {
         String tenantPrefixedRegistrationId = oauth2AuthenticationToken.getAuthorizedClientRegistrationId();
+        String tenantId = getCurrentTenantProperties().getTenantId();
+        authorizationMetricsService.incrementMetricsForTenant(
+                                                            tenantId,
+                                                            MetricType.TOTAL_LOGIN_ATTEMPTS);
         
         // Find external IDP client with tenant validation and registration ID extraction
         ExternalIdpRegisteredClient idpClient = findExternalIdpClient(tenantPrefixedRegistrationId);
@@ -217,8 +229,19 @@ public class ClaimsConfigManager {
                 .append("_")
                 .append(userName)
                 .toString();
-
-        return getFederatedUserDetails(originalRegistrationId, federatedUserName, idpClient, claims);
+        
+        UserDetailsResponse userDetailsResponse = getFederatedUserDetails(originalRegistrationId,
+                                                                        federatedUserName,
+                                                                        idpClient,
+                                                                        claims);
+        authorizationMetricsService.incrementMetricsForTenantAndIdp(
+                                                                tenantId,
+                                                                idpClient.getRegistrationId(),
+                                                                MetricType.SUCCESS_LOGIN_BY_EXTERNAL_IDP_CREDENTIALS);
+        authorizationMetricsService.incrementMetricsForTenant(
+                                                                tenantId,
+                                                                MetricType.SUCCESS_LOGIN_ATTEMPTS);
+        return userDetailsResponse;
     }
 
     /**

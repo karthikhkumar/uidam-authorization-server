@@ -24,6 +24,8 @@ import org.eclipse.ecsp.oauth2.server.core.config.TenantContext;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
 import org.eclipse.ecsp.oauth2.server.core.exception.ReCaptchaInvalidException;
 import org.eclipse.ecsp.oauth2.server.core.exception.ReCaptchaUnavailableException;
+import org.eclipse.ecsp.oauth2.server.core.metrics.AuthorizationMetricsService;
+import org.eclipse.ecsp.oauth2.server.core.metrics.MetricType;
 import org.eclipse.ecsp.oauth2.server.core.response.GoogleResponse;
 import org.eclipse.ecsp.oauth2.server.core.service.CaptchaService;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
@@ -57,14 +59,17 @@ public class CaptchaServiceImpl implements CaptchaService {
     private static final Logger LOGGER = LoggerFactory.getLogger(CaptchaServiceImpl.class);
 
     private final TenantConfigurationService tenantConfigurationService;
+    private final AuthorizationMetricsService metricsService;
 
     /**
      * Constructor that initializes the tenantConfigurationService.
      *
      * @param tenantConfigurationService the service to retrieve tenant properties.
      */
-    public CaptchaServiceImpl(TenantConfigurationService tenantConfigurationService) {
+    public CaptchaServiceImpl(TenantConfigurationService tenantConfigurationService,
+                             AuthorizationMetricsService metricsService) {
         this.tenantConfigurationService = tenantConfigurationService;
+        this.metricsService = metricsService;
     }
 
     /**
@@ -95,6 +100,7 @@ public class CaptchaServiceImpl implements CaptchaService {
         securityCheck(response);
         
         TenantProperties tenantProperties = getCurrentTenantProperties();
+        String tenantId = tenantProperties.getTenantId();
         String recaptchaVerifyUrl = tenantProperties.getCaptcha().getRecaptchaVerifyUrl() + RECAPTCHA_URL_TEMPLATE;
         final URI verifyUri = URI.create(String.format(recaptchaVerifyUrl, getReCaptchaSecret(), response,
             getClientIp(request)));
@@ -116,10 +122,18 @@ public class CaptchaServiceImpl implements CaptchaService {
                     if (googleResponse.hasClientError()) {
                         LOGGER.debug("Recaptcha client error");
                     }
+                    metricsService.incrementMetricsForTenant(tenantId,
+                                                            MetricType.FAILURE_LOGIN_CAPTCHA,
+                                                            MetricType.FAILURE_LOGIN_ATTEMPTS,
+                                                            MetricType.TOTAL_LOGIN_ATTEMPTS);
                     throw new ReCaptchaInvalidException("reCaptcha was not successfully validated");
                 }
             }
         } catch (RestClientException rce) {
+            metricsService.incrementMetricsForTenant(tenantId,
+                                                    MetricType.FAILURE_LOGIN_CAPTCHA,
+                                                    MetricType.FAILURE_LOGIN_ATTEMPTS,
+                                                    MetricType.TOTAL_LOGIN_ATTEMPTS);
             throw new ReCaptchaUnavailableException("ReCaptcha service unavailable at this time. "
                 + "Please try again later.", rce);
         } finally {

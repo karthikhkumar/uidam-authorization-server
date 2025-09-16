@@ -22,6 +22,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.CaptchaProperties;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
 import org.eclipse.ecsp.oauth2.server.core.exception.ReCaptchaInvalidException;
+import org.eclipse.ecsp.oauth2.server.core.metrics.AuthorizationMetricsService;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -50,6 +51,9 @@ class CaptchaServiceImplTest {
 
     @Mock
     private TenantConfigurationService tenantConfigurationService;
+
+    @Mock
+    private AuthorizationMetricsService authorizationMetricsService;
 
     @Mock
     private TenantProperties tenantProperties;

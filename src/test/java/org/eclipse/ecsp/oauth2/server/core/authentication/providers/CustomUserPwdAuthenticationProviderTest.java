@@ -24,6 +24,7 @@ import org.eclipse.ecsp.oauth2.server.core.authentication.tokens.CustomUserPwdAu
 import org.eclipse.ecsp.oauth2.server.core.client.UserManagementClient;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.UserProperties;
+import org.eclipse.ecsp.oauth2.server.core.metrics.AuthorizationMetricsService;
 import org.eclipse.ecsp.oauth2.server.core.response.UserDetailsResponse;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
 import org.junit.jupiter.api.BeforeEach;
@@ -67,12 +68,15 @@ class CustomUserPwdAuthenticationProviderTest {
     @Mock 
     private HttpSession session;
     
+    @Mock
+    private AuthorizationMetricsService authorizationMetricsService;
+
     private CustomUserPwdAuthenticationProvider customUserPwdAuthenticationProvider;
 
     @BeforeEach
     void setUp() {
         customUserPwdAuthenticationProvider = new CustomUserPwdAuthenticationProvider(
-            userManagementClient, tenantConfigurationService, request);
+            userManagementClient, tenantConfigurationService, request, authorizationMetricsService);
     }
 
     /**
