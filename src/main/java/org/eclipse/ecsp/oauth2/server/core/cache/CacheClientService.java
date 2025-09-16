@@ -27,16 +27,18 @@ public interface CacheClientService {
      * Retrieves client details with synchronization enabled.
      *
      * @param clientId the ID of the client
+     * @param tenantId the ID of the tenant
      * @return the client cache details
      */
-    ClientCacheDetails getClientDetailsWithSync(String clientId);
+    ClientCacheDetails getClientDetailsWithSync(String clientId, String tenantId);
 
     /**
      * Retrieves client details without synchronization.
      *
      * @param clientId the ID of the client
+     * @param tenantId the ID of the tenant
      * @return the client cache details
      */
-    ClientCacheDetails getClientDetailsWithoutSync(String clientId);
+    ClientCacheDetails getClientDetailsWithoutSync(String clientId, String tenantId);
 
 }

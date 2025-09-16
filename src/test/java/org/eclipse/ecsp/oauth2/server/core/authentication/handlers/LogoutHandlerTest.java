@@ -19,9 +19,11 @@
 package org.eclipse.ecsp.oauth2.server.core.authentication.handlers;
 
 import jakarta.servlet.http.HttpSession;
+import org.eclipse.ecsp.oauth2.server.core.config.TenantContext;
 import org.eclipse.ecsp.oauth2.server.core.service.AuthorizationService;
 import org.eclipse.ecsp.oauth2.server.core.service.ClientRegistrationManager;
 import org.eclipse.ecsp.oauth2.server.core.service.DatabaseSecurityContextRepository;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -105,6 +107,15 @@ class LogoutHandlerTest {
                 databaseSecurityContextRepository, "localhost,127.0.0.1");
         request = new MockHttpServletRequest();
         response = new MockHttpServletResponse();
+        
+        // Set up tenant context for multi-tenancy tests
+        TenantContext.setCurrentTenant("uidam");
+    }
+
+    @AfterEach
+    void tearDown() {
+        // Clean up tenant context after each test
+        TenantContext.clear();
     }
 
     @Test
@@ -154,7 +165,7 @@ class LogoutHandlerTest {
                 TEST_STATE);
         // Assert
         verify(authorizationService).revokenTokenByPrincipalAndClientId(TEST_PRINCIPAL_NAME, TEST_CLIENT_ID);
-        assertEquals("/oauth2/logout/success", response.getRedirectedUrl());
+        assertEquals("/uidam/oauth2/logout/success", response.getRedirectedUrl());
     }
 
     @Test
@@ -224,7 +235,7 @@ class LogoutHandlerTest {
 
         // Assert
         assertTrue(response.getRedirectedUrl().contains("error=invalid_client"));
-        assertTrue(response.getRedirectedUrl().contains("/oauth2/logout/error"));
+        assertTrue(response.getRedirectedUrl().contains("/uidam/oauth2/logout/error"));
     }
 
     @Test
@@ -237,7 +248,7 @@ class LogoutHandlerTest {
                 "https://malicious.example.com", TEST_STATE);
 
         // Assert
-        assertEquals("/oauth2/logout/success", response.getRedirectedUrl());
+        assertEquals("/uidam/oauth2/logout/success", response.getRedirectedUrl());
     }
 
     @Test
@@ -300,7 +311,7 @@ class LogoutHandlerTest {
                 TEST_STATE);
 
         // Assert
-        assertTrue(response.getRedirectedUrl().contains("/oauth2/logout/error"));
+        assertTrue(response.getRedirectedUrl().contains("/uidam/oauth2/logout/error"));
         assertTrue(response.getRedirectedUrl().contains("error=invalid_token"));
     }
 
@@ -317,7 +328,7 @@ class LogoutHandlerTest {
                 TEST_STATE);
 
         // Assert
-        assertEquals("/oauth2/logout/error?error=server_error", response.getRedirectedUrl());
+        assertEquals("/uidam/oauth2/logout/error?error=server_error", response.getRedirectedUrl());
     }
 
     @Test
@@ -378,7 +389,7 @@ class LogoutHandlerTest {
                 TEST_POST_LOGOUT_REDIRECT_URI, TEST_STATE);
 
         // Assert
-        assertEquals("/oauth2/logout/success", response.getRedirectedUrl());
+        assertEquals("/uidam/oauth2/logout/success", response.getRedirectedUrl());
     }
 
     @Test
@@ -392,7 +403,7 @@ class LogoutHandlerTest {
         logoutHandler.onLogoutSuccess(request, response, authentication, TEST_ACCESS_TOKEN, TEST_CLIENT_ID,
                 TEST_POST_LOGOUT_REDIRECT_URI, TEST_STATE);
         // Assert
-        assertEquals("/oauth2/logout/success", response.getRedirectedUrl());
+        assertEquals("/uidam/oauth2/logout/success", response.getRedirectedUrl());
     }
 
     @Test
@@ -475,7 +486,7 @@ class LogoutHandlerTest {
                 TEST_POST_LOGOUT_REDIRECT_URI, TEST_STATE);
 
         // Assert
-        assertEquals("/oauth2/logout/success", response.getRedirectedUrl());
+        assertEquals("/uidam/oauth2/logout/success", response.getRedirectedUrl());
     }
 
     @Test
@@ -488,7 +499,7 @@ class LogoutHandlerTest {
                 TEST_STATE);
 
         // Assert
-        assertEquals("/oauth2/logout/success", response.getRedirectedUrl());
+        assertEquals("/uidam/oauth2/logout/success", response.getRedirectedUrl());
     }
 
     @Test
@@ -501,7 +512,7 @@ class LogoutHandlerTest {
                 TEST_POST_LOGOUT_REDIRECT_URI, TEST_STATE);
 
         // Assert
-        assertEquals("/oauth2/logout/success", response.getRedirectedUrl());
+        assertEquals("/uidam/oauth2/logout/success", response.getRedirectedUrl());
     }
 
     @Test
@@ -537,7 +548,7 @@ class LogoutHandlerTest {
                 malformedUri, TEST_STATE);
 
         // Assert
-        assertEquals("/oauth2/logout/error?error=server_error", response.getRedirectedUrl());
+        assertEquals("/uidam/oauth2/logout/error?error=server_error", response.getRedirectedUrl());
     }
 
     // Helper methods for setting up test scenarios

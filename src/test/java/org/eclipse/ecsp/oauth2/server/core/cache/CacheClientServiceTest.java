@@ -72,7 +72,7 @@ class CacheClientServiceTest {
         RegisteredClientDetails registeredClientDetails = getClient();
         doReturn(registeredClientDetails).when(authManagementClient).getClientDetails(anyString());
         doReturn(registeredClient().build()).when(registeredClientMapper).toRegisteredClient(registeredClientDetails);
-        ClientCacheDetails clientCacheDetails = cacheClientService.getClientDetailsWithSync("token-mgmt");
+        ClientCacheDetails clientCacheDetails = cacheClientService.getClientDetailsWithSync("ecsp", "token-mgmt");
         assertNotNull(clientCacheDetails);
     }
 
@@ -86,7 +86,7 @@ class CacheClientServiceTest {
         RegisteredClientDetails registeredClientDetails = getClient();
         doReturn(registeredClientDetails).when(authManagementClient).getClientDetails(anyString());
         doReturn(registeredClient().build()).when(registeredClientMapper).toRegisteredClient(registeredClientDetails);
-        ClientCacheDetails clientCacheDetails = cacheClientService.getClientDetailsWithoutSync("token-mgmt");
+        ClientCacheDetails clientCacheDetails = cacheClientService.getClientDetailsWithoutSync("ecsp", "token-mgmt");
         assertNotNull(clientCacheDetails);
     }
 
@@ -100,7 +100,7 @@ class CacheClientServiceTest {
         RegisteredClientDetails registeredClientDetails = getClient();
         doReturn(registeredClientDetails).when(authManagementClient).getClientDetails(anyString());
         doReturn(registeredClient().build()).when(registeredClientMapper).toRegisteredClient(registeredClientDetails);
-        ClientCacheDetails clientCacheDetails = cacheClientService.getClientDetailsWithoutSync("test");
+        ClientCacheDetails clientCacheDetails = cacheClientService.getClientDetailsWithoutSync("ecsp", "test");
         assertNotNull(clientCacheDetails);
     }
 

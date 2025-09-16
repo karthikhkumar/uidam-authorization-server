@@ -20,6 +20,7 @@ package org.eclipse.ecsp.oauth2.server.core.utils;
 
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import org.eclipse.ecsp.oauth2.server.core.config.TenantAwareKeyStoreFactory;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,6 +49,9 @@ class JwtTokenValidatorTest {
     @Mock
     private TenantConfigurationService tenantConfigurationService;
 
+    @Mock
+    private TenantAwareKeyStoreFactory keyStoreFactory;
+
     private JwtTokenValidator jwtTokenValidator;
     
     private PublicKey publicKey;
@@ -58,10 +62,11 @@ class JwtTokenValidatorTest {
                 .getResourceAsStream("uidampubkey.pem"));
 
         MockitoAnnotations.openMocks(this);
-        when(tenantProperties.getKeyStore()).thenReturn(getKeyStore());
-
+        //when(tenantProperties.getKeyStore()).thenReturn(getKeyStore());
+        //when(tenantConfigurationService.getTenantProperties()).thenReturn(tenantProperties);
+        when(keyStoreFactory.getCurrentTenantPublicKey()).thenReturn(this.publicKey);
         // Initialize JwtTokenValidator
-        jwtTokenValidator = new JwtTokenValidator(tenantProperties);
+        jwtTokenValidator = new JwtTokenValidator(tenantConfigurationService, keyStoreFactory);
     }
 
     public HashMap<String, String> getKeyStore() {

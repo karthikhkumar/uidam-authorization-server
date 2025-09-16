@@ -25,6 +25,8 @@ import org.eclipse.ecsp.oauth2.server.core.client.UserManagementClient;
 import org.eclipse.ecsp.oauth2.server.core.common.CustomOauth2TokenGenErrorCodes;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.ExternalIdpRegisteredClient;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
+import org.eclipse.ecsp.oauth2.server.core.metrics.AuthorizationMetricsService;
+import org.eclipse.ecsp.oauth2.server.core.metrics.MetricType;
 import org.eclipse.ecsp.oauth2.server.core.request.dto.FederatedUserDto;
 import org.eclipse.ecsp.oauth2.server.core.response.UserDetailsResponse;
 import org.eclipse.ecsp.oauth2.server.core.service.ClaimMappingService;
@@ -58,7 +60,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.UIDAM;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.AUTHORIZATION_CODE_GRANT_TYPE;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.CLAIM_ACCOUNT_ID;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.CLAIM_ACCOUNT_NAME;
@@ -90,30 +91,51 @@ import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2C
  */
 @Configuration
 public class ClaimsConfigManager {
+    private static final int TENANT_PREFIX_PARTS = 2;
+
     private static final Logger LOGGER = LoggerFactory.getLogger(ClaimsConfigManager.class);
 
-    private TenantProperties tenantProperties;
-    @Autowired
-    private UserManagementClient userManagementClient;
-
-    private ClaimMappingService claimMappingService;
+    private final TenantConfigurationService tenantConfigurationService;
+    private final UserManagementClient userManagementClient;
+    private final ClaimMappingService claimMappingService;
+    private final AuthorizationMetricsService authorizationMetricsService;
 
     /**
-     * Constructor for ClaimsConfigManager. It initializes the tenant properties
-     * using the provided TenantConfigurationService.
+     * Constructor for ClaimsConfigManager. It initializes the tenant configuration service
+     * for dynamic tenant resolution.
      *
-     * @param tenantConfigurationService the service to retrieve tenant properties
+     * @param tenantConfigurationService the service to retrieve tenant properties from
+     * @param claimMappingService the service for claim mapping operations
+     * @param userManagementClient the client for user management operations
      */
-
     @Autowired
     public ClaimsConfigManager(TenantConfigurationService tenantConfigurationService,
-            ClaimMappingService claimMappingService) {
-        tenantProperties = tenantConfigurationService.getTenantProperties(UIDAM);
+            ClaimMappingService claimMappingService,
+            UserManagementClient userManagementClient,
+            AuthorizationMetricsService authorizationMetricsService) {
+        this.tenantConfigurationService = tenantConfigurationService;
         this.claimMappingService = claimMappingService;
+        this.userManagementClient = userManagementClient;
+        this.authorizationMetricsService = authorizationMetricsService;
     }
 
-    public ClaimsConfigManager() {
-
+    
+    /**
+     * This method retrieves the current tenant properties from the TenantConfigurationService. It throws an exception
+     * if the service is not initialized or if no tenant properties are found.
+     *
+     * @return TenantProperties containing the properties of the current tenant.
+     * @throws IllegalStateException if TenantConfigurationService is not initialized or no tenant properties are found.
+     */
+    private TenantProperties getCurrentTenantProperties() {
+        if (tenantConfigurationService == null) {
+            throw new IllegalStateException("TenantConfigurationService not initialized");
+        }
+        TenantProperties tenantProperties = tenantConfigurationService.getTenantProperties();
+        if (tenantProperties == null) {
+            throw new IllegalStateException("No tenant properties found for current tenant");
+        }
+        return tenantProperties;
     }
 
     /**
@@ -137,6 +159,9 @@ public class ClaimsConfigManager {
                     userDetailsResponse = userManagementClient.getUserDetailsByUsername(
                             customUserPwdAuthenticationToken.getName(),
                             customUserPwdAuthenticationToken.getAccountName());
+                    authorizationMetricsService.incrementMetricsForTenant(
+                            getCurrentTenantProperties().getTenantId(),
+                            MetricType.SUCCESS_LOGIN_BY_INTERNAL_CREDENTIALS);
                 }
                 if (context.getPrincipal() instanceof OAuth2AuthenticationToken oauth2AuthenticationToken) {
                     LOGGER.debug("Federated user authentication");
@@ -166,14 +191,20 @@ public class ClaimsConfigManager {
      * @return UserDetailsResponse containing the details of the federated user.
      */
     private UserDetailsResponse getUserDetailsForFederatedUser(OAuth2AuthenticationToken oauth2AuthenticationToken) {
-        String idpRegisteredClientId = oauth2AuthenticationToken.getAuthorizedClientRegistrationId();
-        ExternalIdpRegisteredClient idpClient = findExternalIdpClient(idpRegisteredClientId);
+        String tenantPrefixedRegistrationId = oauth2AuthenticationToken.getAuthorizedClientRegistrationId();
+        String tenantId = getCurrentTenantProperties().getTenantId();
+        authorizationMetricsService.incrementMetricsForTenant(
+                                                            tenantId,
+                                                            MetricType.TOTAL_LOGIN_ATTEMPTS);
+        
+        // Find external IDP client with tenant validation and registration ID extraction
+        ExternalIdpRegisteredClient idpClient = findExternalIdpClient(tenantPrefixedRegistrationId);
         
         if (idpClient == null) {
             throw new OAuth2AuthenticationException(
                 new OAuth2Error(
                     "invalid_idp_configuration",
-                    "No external IDP configuration found for: " + idpRegisteredClientId,
+                    "No external IDP configuration found for: " + tenantPrefixedRegistrationId,
                     null
                 )
             );
@@ -186,25 +217,122 @@ public class ClaimsConfigManager {
 
         Map<String, Object> claims = oauth2AuthenticationToken.getPrincipal().getAttributes();
         String userName = String.valueOf(claims.get(idpClient.getUserNameAttributeName()));
-        String federatedUserName = idpRegisteredClientId + "_" + userName;
-
-        return getFederatedUserDetails(idpRegisteredClientId, federatedUserName, idpClient, claims);
+        
+        // Extract original registration ID for the method call
+        String originalRegistrationId = idpClient.getRegistrationId();
+        
+        // Use StringBuilder for better performance when constructing federated username
+        int expectedLength = originalRegistrationId.length() + userName.length() + 1;
+        StringBuilder federatedUserNameBuilder = new StringBuilder(expectedLength);
+        String federatedUserName = federatedUserNameBuilder
+                .append(originalRegistrationId)
+                .append("_")
+                .append(userName)
+                .toString();
+        
+        UserDetailsResponse userDetailsResponse = getFederatedUserDetails(originalRegistrationId,
+                                                                        federatedUserName,
+                                                                        idpClient,
+                                                                        claims);
+        authorizationMetricsService.incrementMetricsForTenantAndIdp(
+                                                                tenantId,
+                                                                idpClient.getRegistrationId(),
+                                                                MetricType.SUCCESS_LOGIN_BY_EXTERNAL_IDP_CREDENTIALS);
+        authorizationMetricsService.incrementMetricsForTenant(
+                                                                tenantId,
+                                                                MetricType.SUCCESS_LOGIN_ATTEMPTS);
+        return userDetailsResponse;
     }
 
     /**
-     * Finds the external Identity Provider (IdP) client configuration based on the registration ID.
-     * This method searches through the tenant's configured external IdP clients to find a matching
-     * registration.
+     * Finds the external Identity Provider (IdP) client configuration based on the tenant-prefixed registration ID.
+     * This method handles tenant validation and extracts the original registration ID from the tenant-prefixed format.
+     * It ensures that only users from the current tenant can access their corresponding IDP configurations. The
+     * registration ID must be in the format: "tenant-provider" (e.g., "demo-google", "ecsp-azure")
      *
-
-     * @param idpRegisteredClientId The registration ID of the external IdP client to find
+     * @param tenantPrefixedRegistrationId The tenant-prefixed registration ID (e.g., "demo-google")
      * @return ExternalIdpRegisteredClient The matching IdP client configuration, or null if not found
+     * @throws OAuth2AuthenticationException if the tenant prefix doesn't match current tenant or registration ID is
+     *     invalid.
      */
-    private ExternalIdpRegisteredClient findExternalIdpClient(String idpRegisteredClientId) {
+    private ExternalIdpRegisteredClient findExternalIdpClient(String tenantPrefixedRegistrationId) {
+        if (tenantPrefixedRegistrationId == null) {
+            throw new OAuth2AuthenticationException(
+                new OAuth2Error(
+                    "invalid_registration_id",
+                    "Registration ID cannot be null",
+                    null
+                )
+            );
+        }
+
+        // Get current tenant properties - single call optimized
+        TenantProperties tenantProperties = getCurrentTenantProperties();
+        String currentTenantId = tenantProperties.getTenantId();
+        
+        // Registration ID must be in tenant-prefixed format: "tenant-provider"
+        if (!tenantPrefixedRegistrationId.contains("-")) {
+            throwInvalidRegistrationFormatException(tenantPrefixedRegistrationId);
+        }
+        
+        String[] parts = tenantPrefixedRegistrationId.split("-", TENANT_PREFIX_PARTS);
+        if (parts.length != TENANT_PREFIX_PARTS || parts[0].isEmpty() || parts[1].isEmpty()) {
+            throwInvalidRegistrationFormatException(tenantPrefixedRegistrationId);
+        }
+
+        String tenantPrefix = parts[0];
+        String originalRegistrationId = parts[1];
+        
+        // Validate that the tenant prefix matches the current tenant
+        if (!currentTenantId.equals(tenantPrefix)) {
+            throwInvalidTenantAccessException(tenantPrefix, currentTenantId);
+        }
+        
+        LOGGER.debug("Validated tenant prefix '{}' matches current tenant, extracted registration ID: '{}'", 
+            tenantPrefix, originalRegistrationId);
+        
+        // Find the IDP client configuration using the original registration ID
         return tenantProperties.getExternalIdpRegisteredClientList().stream()
-                .filter(x -> x.getRegistrationId().equalsIgnoreCase(idpRegisteredClientId))
+                .filter(x -> x.getRegistrationId().equalsIgnoreCase(originalRegistrationId))
                 .findFirst()
                 .orElse(null);
+    }
+
+    /**
+     * Helper method to throw a consistent invalid tenant access exception.
+     *
+     * @param tenantPrefix The tenant prefix from the registration ID
+     * @param currentTenantId The current tenant ID
+     * @throws OAuth2AuthenticationException Always throws this exception with consistent error message
+     */
+    private void throwInvalidTenantAccessException(String tenantPrefix, String currentTenantId) {
+        StringBuilder errorMessage = new StringBuilder("Access denied: Registration ID belongs to tenant '")
+                .append(tenantPrefix)
+                .append("' but current tenant is '")
+                .append(currentTenantId)
+                .append("'");
+        
+        throw new OAuth2AuthenticationException(
+                new OAuth2Error("invalid_tenant_access", errorMessage.toString(), null));
+    }
+    
+    /**
+     * Helper method to throw a consistent invalid registration format exception.
+     *
+     * @param registrationId The invalid registration ID
+     * @throws OAuth2AuthenticationException Always throws this exception with consistent error message
+     */
+    private void throwInvalidRegistrationFormatException(String registrationId) {
+        StringBuilder errorMessage = new StringBuilder("Registration ID must be in format 'tenant-provider' but was: ")
+                .append(registrationId);
+        
+        throw new OAuth2AuthenticationException(
+            new OAuth2Error(
+                "invalid_registration_format",
+                errorMessage.toString(),
+                null
+            )
+        );
     }
 
     /**
@@ -363,10 +491,6 @@ public class ClaimsConfigManager {
             claimsBuilder
                     .claim(CLAIM_ACCOUNT_ID, clientDetails.getAccountId());
         }
-        if (StringUtils.hasText(clientDetails.getTenantId())) {
-            claimsBuilder
-                    .claim(CLAIM_TENANT_ID, clientDetails.getTenantId());
-        }
         LOGGER.debug("## setClientCustomClaims - END");
     }
 
@@ -390,9 +514,6 @@ public class ClaimsConfigManager {
         if (StringUtils.hasText(userDetailsResponse.getAccountId())) {
             claimsBuilder.claim(CLAIM_ACCOUNT_ID, userDetailsResponse.getAccountId());
         }
-        if (StringUtils.hasText(userDetailsResponse.getTenantId())) {
-            claimsBuilder.claim(CLAIM_TENANT_ID, userDetailsResponse.getTenantId());
-        }
         if (StringUtils.hasText(userDetailsResponse.getUserName())) {
             claimsBuilder.claim(CLAIM_USERNAME, userDetailsResponse.getUserName());
         }
@@ -400,6 +521,7 @@ public class ClaimsConfigManager {
         if (!CollectionUtils.isEmpty(additionalAttributes)) {
             LOGGER.info("Adding claims from additional attributes");
             List<String> additionalClaimsAttributesList;
+            TenantProperties tenantProperties = getCurrentTenantProperties();
             for (Map.Entry<String, Object> entry : additionalAttributes.entrySet()) {
                 if (Objects.nonNull(tenantProperties) && Objects.nonNull(tenantProperties.getUser())
                         && Objects.nonNull(tenantProperties.getUser().getJwtAdditionalClaimAttributes())) {
@@ -425,6 +547,7 @@ public class ClaimsConfigManager {
      */
     private void setStandardClaims(JwtClaimsSet.Builder claimsBuilder) {
         LOGGER.debug("## setStandardClaims - START");
+        TenantProperties tenantProperties = getCurrentTenantProperties();
         claimsBuilder.claim(JwtClaimNames.JTI, UUID.randomUUID().toString())
                 .claim(CLAIM_ACCOUNT_ID, tenantProperties.getAccount().getAccountId())
                 .claim(CLAIM_TENANT_ID, tenantProperties.getTenantId());
@@ -454,6 +577,7 @@ public class ClaimsConfigManager {
                                    Set<String> scopeSet,
                                    boolean isClientCredentialsGrantType) {
         LOGGER.debug("## addScopeAndScopes - START");
+        TenantProperties tenantProperties = getCurrentTenantProperties();
         if (CommonMethodsUtils.isUserScopeValidationRequired(
                 (null != clientDetails ? clientDetails.getClientType() : null),
                 tenantProperties.getClient().getOauthScopeCustomization()

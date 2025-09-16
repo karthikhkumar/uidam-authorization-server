@@ -85,8 +85,7 @@ public class TestConstants {
     public static final String INVALID_CLIENT = "INVALID_CLIENT";
 
     public static final String ATTRIBUTE_SUB = "sub";
-    public static final String REGISTRATION_ID_GOOGLE = "google";
-
+    public static final String REGISTRATION_ID_GOOGLE = "demo-google";
     public static final String REQUESTED_SESSION_ID = "1234567890";
     public static final String GRANTED_AUTORITIES = "USER,ADMIN";
     public static final int SECONDS_300 = 300;
@@ -98,7 +97,7 @@ public class TestConstants {
     public static final String EXTERNAL_IDP_ADDITIONAL_PARAMETERS = "{\"@class\":"
         + "\"java.util.Collections$UnmodifiableMap\",\"nonce\":\"nonce\"}";
     public static final String EXTERNAL_IDP_ATTRIBUTES = "{\"@class\":\"java.util.Collections$UnmodifiableMap\","
-        + "\"registration_id\":\"google\",\"nonce\":\"nonce\"}";
+        + "\"registration_id\":\"demo-google\",\"nonce\":\"nonce\"}";
 
     public static final String RECAPTCHA_URL = "https://www.google.com/recaptcha/api/siteverify";
 

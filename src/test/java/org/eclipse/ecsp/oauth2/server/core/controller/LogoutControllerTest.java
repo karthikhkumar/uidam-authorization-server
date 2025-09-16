@@ -21,6 +21,7 @@ package org.eclipse.ecsp.oauth2.server.core.controller;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.eclipse.ecsp.oauth2.server.core.authentication.handlers.LogoutHandler;
+import org.eclipse.ecsp.oauth2.server.core.utils.UiAttributeUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -70,6 +71,9 @@ class LogoutControllerTest {
 
     @Mock
     private LogoutHandler logoutHandler;
+    
+    @Mock
+    private UiAttributeUtils uiAttributeUtils;
 
     @Mock
     private Authentication authentication;
@@ -106,9 +110,8 @@ class LogoutControllerTest {
                 eq(authentication), eq(VALID_ID_TOKEN_HINT), eq(VALID_CLIENT_ID), isNull(), isNull());
 
         // Act
-        mockMvc.perform(
-                post("/oauth2/logout").param("id_token_hint", VALID_ID_TOKEN_HINT).param("client_id", VALID_CLIENT_ID))
-                .andExpect(status().isOk());
+        mockMvc.perform(post("/{tenantId}/oauth2/logout", "ecsp").param("id_token_hint", VALID_ID_TOKEN_HINT)
+                .param("client_id", VALID_CLIENT_ID)).andExpect(status().isOk());
 
         // Assert
         verify(logoutHandler, times(1)).onLogoutSuccess(any(HttpServletRequest.class), any(HttpServletResponse.class),
@@ -123,10 +126,9 @@ class LogoutControllerTest {
                 eq(authentication), eq(VALID_ID_TOKEN_HINT), eq(VALID_CLIENT_ID), isNull(), eq(""));
 
         // Act
-        mockMvc.perform(
-                post("/oauth2/logout").param("id_token_hint", VALID_ID_TOKEN_HINT).param("client_id", VALID_CLIENT_ID)
-                        .param("post_logout_redirect_uri", "").param("state", "").param("logout_hint", ""))
-                .andExpect(status().isOk());
+        mockMvc.perform(post("/{tenantId}/oauth2/logout", "ecsp").param("id_token_hint", VALID_ID_TOKEN_HINT)
+                .param("client_id", VALID_CLIENT_ID).param("post_logout_redirect_uri", "").param("state", "")
+                .param("logout_hint", "")).andExpect(status().isOk());
 
         // Assert
         verify(logoutHandler, times(1)).onLogoutSuccess(any(HttpServletRequest.class), any(HttpServletResponse.class),
@@ -135,7 +137,8 @@ class LogoutControllerTest {
 
     @Test
     void shouldReturnBadRequestWhenIdTokenHintIsMissing() throws Exception {
-        mockMvc.perform(post("/oauth2/logout").param("client_id", VALID_CLIENT_ID)).andExpect(status().isBadRequest());
+        mockMvc.perform(post("/{tenantId}/oauth2/logout", "ecsp").param("client_id", VALID_CLIENT_ID))
+                .andExpect(status().isBadRequest());
 
         verify(logoutHandler, never()).onLogoutSuccess(any(HttpServletRequest.class), any(HttpServletResponse.class),
                 any(Authentication.class), anyString(), anyString(), anyString(), anyString());
@@ -143,7 +146,7 @@ class LogoutControllerTest {
 
     @Test
     void shouldReturnBadRequestWhenClientIdIsMissing() throws Exception {
-        mockMvc.perform(post("/oauth2/logout").param("id_token_hint", VALID_ID_TOKEN_HINT))
+        mockMvc.perform(post("/{tenantId}/oauth2/logout", "ecsp").param("id_token_hint", VALID_ID_TOKEN_HINT))
                 .andExpect(status().isBadRequest());
 
         verify(logoutHandler, never()).onLogoutSuccess(any(HttpServletRequest.class), any(HttpServletResponse.class),
@@ -152,7 +155,7 @@ class LogoutControllerTest {
 
     @Test
     void shouldReturnBadRequestWhenBothRequiredParametersAreMissing() throws Exception {
-        mockMvc.perform(post("/oauth2/logout")).andExpect(status().isBadRequest());
+        mockMvc.perform(post("/{tenantId}/oauth2/logout", "ecsp")).andExpect(status().isBadRequest());
 
         verify(logoutHandler, never()).onLogoutSuccess(any(HttpServletRequest.class), any(HttpServletResponse.class),
                 any(Authentication.class), anyString(), anyString(), anyString(), anyString());
@@ -165,9 +168,8 @@ class LogoutControllerTest {
         ArgumentCaptor<Authentication> authCaptor = ArgumentCaptor.forClass(Authentication.class);
 
         // Act
-        mockMvc.perform(
-                post("/oauth2/logout").param("id_token_hint", VALID_ID_TOKEN_HINT).param("client_id", VALID_CLIENT_ID))
-                .andExpect(status().isOk());
+        mockMvc.perform(post("/{tenantId}/oauth2/logout", "ecsp").param("id_token_hint", VALID_ID_TOKEN_HINT)
+                .param("client_id", VALID_CLIENT_ID)).andExpect(status().isOk());
 
         // Assert
         verify(logoutHandler).onLogoutSuccess(any(HttpServletRequest.class), any(HttpServletResponse.class),
@@ -188,10 +190,9 @@ class LogoutControllerTest {
                 eq(specialState));
 
         // Act & Assert
-        mockMvc.perform(
-                post("/oauth2/logout").param("id_token_hint", VALID_ID_TOKEN_HINT).param("client_id", VALID_CLIENT_ID)
-                        .param("post_logout_redirect_uri", specialRedirectUri).param("state", specialState))
-                .andExpect(status().isOk());
+        mockMvc.perform(post("/{tenantId}/oauth2/logout", "ecsp").param("id_token_hint", VALID_ID_TOKEN_HINT)
+                .param("client_id", VALID_CLIENT_ID).param("post_logout_redirect_uri", specialRedirectUri)
+                .param("state", specialState)).andExpect(status().isOk());
 
         verify(logoutHandler, times(1)).onLogoutSuccess(any(HttpServletRequest.class), any(HttpServletResponse.class),
                 eq(authentication), eq(VALID_ID_TOKEN_HINT), eq(VALID_CLIENT_ID), eq(specialRedirectUri),
@@ -202,7 +203,7 @@ class LogoutControllerTest {
 
     @Test
     void shouldReturnLogoutSuccessPage() throws Exception {
-        mockMvc.perform(get("/oauth2/logout/success")).andExpect(status().isOk())
+        mockMvc.perform(get("/{tenantId}/oauth2/logout/success", "ecsp")).andExpect(status().isOk())
                 .andExpect(view().name("logout-success"));
     }
 
@@ -210,76 +211,78 @@ class LogoutControllerTest {
     void shouldHandleMultipleSuccessPageRequests() throws Exception {
         // Test that multiple requests to success page work correctly
         for (int i = 0; i < INT_3; i++) {
-            mockMvc.perform(get("/oauth2/logout/success")).andExpect(status().isOk())
+            mockMvc.perform(get("/{tenantId}/oauth2/logout/success", "ecsp")).andExpect(status().isOk())
                     .andExpect(view().name("logout-success"));
         }
     } // ================== GET /oauth2/logout/error Tests ==================
 
     @Test
     void shouldReturnLogoutErrorPageWithoutErrorParameter() throws Exception {
-        mockMvc.perform(get("/oauth2/logout/error")).andExpect(status().isOk()).andExpect(view().name("logout-error"))
-                .andExpect(model().attributeDoesNotExist("errorMessage"));
+        mockMvc.perform(get("/{tenantId}/oauth2/logout/error", "ecsp")).andExpect(status().isOk())
+                .andExpect(view().name("logout-error")).andExpect(model().attributeDoesNotExist("errorMessage"));
     }
 
     @Test
     void shouldReturnLogoutErrorPageWithInvalidTokenError() throws Exception {
-        mockMvc.perform(get("/oauth2/logout/error").param("error", OAuth2ErrorCodes.INVALID_TOKEN))
+        mockMvc.perform(get("/{tenantId}/oauth2/logout/error", "ecsp").param("error", OAuth2ErrorCodes.INVALID_TOKEN))
                 .andExpect(status().isOk()).andExpect(view().name("logout-error"))
                 .andExpect(model().attribute("errorMessage", "The provided token is invalid or expired."));
     }
 
     @Test
     void shouldReturnLogoutErrorPageWithInvalidClientError() throws Exception {
-        mockMvc.perform(get("/oauth2/logout/error").param("error", OAuth2ErrorCodes.INVALID_CLIENT))
+        mockMvc.perform(get("/{tenantId}/oauth2/logout/error", "ecsp").param("error", OAuth2ErrorCodes.INVALID_CLIENT))
                 .andExpect(status().isOk()).andExpect(view().name("logout-error"))
                 .andExpect(model().attribute("errorMessage", "The client is not recognized or not authorized."));
     }
 
     @Test
     void shouldReturnLogoutErrorPageWithInvalidRequestError() throws Exception {
-        mockMvc.perform(get("/oauth2/logout/error").param("error", OAuth2ErrorCodes.INVALID_REQUEST))
+        mockMvc.perform(get("/{tenantId}/oauth2/logout/error", "ecsp").param("error", OAuth2ErrorCodes.INVALID_REQUEST))
                 .andExpect(status().isOk()).andExpect(view().name("logout-error"))
                 .andExpect(model().attribute("errorMessage", "The logout request is malformed or invalid."));
     }
 
     @Test
     void shouldReturnLogoutErrorPageWithUnauthorizedClientError() throws Exception {
-        mockMvc.perform(get("/oauth2/logout/error").param("error", OAuth2ErrorCodes.UNAUTHORIZED_CLIENT))
+        mockMvc.perform(
+                get("/{tenantId}/oauth2/logout/error", "ecsp").param("error", OAuth2ErrorCodes.UNAUTHORIZED_CLIENT))
                 .andExpect(status().isOk()).andExpect(view().name("logout-error")).andExpect(model()
                         .attribute("errorMessage", "The client is not authorized to perform the logout operation."));
     }
 
     @Test
     void shouldReturnLogoutErrorPageWithAccessDeniedError() throws Exception {
-        mockMvc.perform(get("/oauth2/logout/error").param("error", OAuth2ErrorCodes.ACCESS_DENIED))
+        mockMvc.perform(get("/{tenantId}/oauth2/logout/error", "ecsp").param("error", OAuth2ErrorCodes.ACCESS_DENIED))
                 .andExpect(status().isOk()).andExpect(view().name("logout-error"))
                 .andExpect(model().attribute("errorMessage", "Access to the logout operation was denied."));
     }
 
     @Test
     void shouldReturnLogoutErrorPageWithServerError() throws Exception {
-        mockMvc.perform(get("/oauth2/logout/error").param("error", OAuth2ErrorCodes.SERVER_ERROR))
+        mockMvc.perform(get("/{tenantId}/oauth2/logout/error", "ecsp").param("error", OAuth2ErrorCodes.SERVER_ERROR))
                 .andExpect(status().isOk()).andExpect(view().name("logout-error"))
                 .andExpect(model().attribute("errorMessage", "An internal server error occurred during logout."));
     }
 
     @Test
     void shouldReturnLogoutErrorPageWithTemporarilyUnavailableError() throws Exception {
-        mockMvc.perform(get("/oauth2/logout/error").param("error", OAuth2ErrorCodes.TEMPORARILY_UNAVAILABLE))
+        mockMvc.perform(
+                get("/{tenantId}/oauth2/logout/error", "ecsp").param("error", OAuth2ErrorCodes.TEMPORARILY_UNAVAILABLE))
                 .andExpect(status().isOk()).andExpect(view().name("logout-error")).andExpect(model().attribute(
                         "errorMessage", "The logout service is temporarily unavailable. Please try again later."));
     }
 
     @Test
     void shouldReturnLogoutErrorPageWithUnknownError() throws Exception {
-        mockMvc.perform(get("/oauth2/logout/error").param("error", "unknown_error")).andExpect(status().isOk())
-                .andExpect(view().name("logout-error"))
+        mockMvc.perform(get("/{tenantId}/oauth2/logout/error", "ecsp").param("error", "unknown_error"))
+                .andExpect(status().isOk()).andExpect(view().name("logout-error"))
                 .andExpect(model().attribute("errorMessage", "An unexpected error occurred during logout."));
     }
 
     @Test
     void shouldHandleEmptyErrorParameter() throws Exception {
-        mockMvc.perform(get("/oauth2/logout/error").param("error", "")).andExpect(status().isOk())
+        mockMvc.perform(get("/{tenantId}/oauth2/logout/error", "ecsp").param("error", "")).andExpect(status().isOk())
                 .andExpect(view().name("logout-error"))
                 .andExpect(model().attribute("errorMessage", "An unexpected error occurred during logout."));
     }
@@ -287,7 +290,7 @@ class LogoutControllerTest {
     @Test
     void shouldHandleNullErrorParameterExplicitly() {
         // Test direct controller method call to verify null handling
-        String result = logoutController.logoutError(model, null);
+        String result = logoutController.logoutError("ecsp", model, null);
 
         assertEquals("logout-error", result);
         verify(model, never()).addAttribute(eq("errorMessage"), anyString());
@@ -297,8 +300,9 @@ class LogoutControllerTest {
     void shouldHandleMultipleErrorParameters() throws Exception {
         // When multiple error parameters are provided, Spring MVC behavior may vary
         // In this case, it appears to result in an unexpected error message
-        mockMvc.perform(get("/oauth2/logout/error").param("error", OAuth2ErrorCodes.INVALID_TOKEN).param("error",
-                OAuth2ErrorCodes.INVALID_CLIENT)).andExpect(status().isOk()).andExpect(view().name("logout-error"))
+        mockMvc.perform(get("/{tenantId}/oauth2/logout/error", "ecsp").param("error", OAuth2ErrorCodes.INVALID_TOKEN)
+                .param("error", OAuth2ErrorCodes.INVALID_CLIENT)).andExpect(status().isOk())
+                .andExpect(view().name("logout-error"))
                 .andExpect(model().attribute("errorMessage", "An unexpected error occurred during logout."));
     }
 
@@ -307,17 +311,20 @@ class LogoutControllerTest {
     void shouldMapAllOauth2ErrorCodesToCorrectMessages() {
         // Test all OAuth2 error codes through the error endpoint
         String[] errorCodes = { OAuth2ErrorCodes.INVALID_TOKEN, OAuth2ErrorCodes.INVALID_CLIENT,
-            OAuth2ErrorCodes.INVALID_REQUEST, OAuth2ErrorCodes.UNAUTHORIZED_CLIENT, OAuth2ErrorCodes.ACCESS_DENIED,
+            OAuth2ErrorCodes.INVALID_REQUEST, OAuth2ErrorCodes.UNAUTHORIZED_CLIENT,
+            OAuth2ErrorCodes.ACCESS_DENIED,
             OAuth2ErrorCodes.SERVER_ERROR, OAuth2ErrorCodes.TEMPORARILY_UNAVAILABLE };
 
         String[] expectedMessages = { "The provided token is invalid or expired.",
-            "The client is not recognized or not authorized.", "The logout request is malformed or invalid.",
+            "The client is not recognized or not authorized.", 
+            "The logout request is malformed or invalid.",
             "The client is not authorized to perform the logout operation.",
-            "Access to the logout operation was denied.", "An internal server error occurred during logout.",
+            "Access to the logout operation was denied.", 
+            "An internal server error occurred during logout.",
             "The logout service is temporarily unavailable. Please try again later." };
 
         for (int i = 0; i < errorCodes.length; i++) {
-            String result = logoutController.logoutError(model, errorCodes[i]);
+            String result = logoutController.logoutError("ecsp", model, errorCodes[i]);
             assertEquals("logout-error", result);
 
             verify(model).addAttribute("errorMessage", expectedMessages[i]);
@@ -332,9 +339,8 @@ class LogoutControllerTest {
         when(securityContext.getAuthentication()).thenReturn(null);
 
         // Act & Assert
-        mockMvc.perform(
-                post("/oauth2/logout").param("id_token_hint", VALID_ID_TOKEN_HINT).param("client_id", VALID_CLIENT_ID))
-                .andExpect(status().isOk());
+        mockMvc.perform(post("/{tenantId}/oauth2/logout", "ecsp").param("id_token_hint", VALID_ID_TOKEN_HINT)
+                .param("client_id", VALID_CLIENT_ID)).andExpect(status().isOk());
 
         verify(logoutHandler, times(1)).onLogoutSuccess(any(HttpServletRequest.class), any(HttpServletResponse.class),
                 isNull(), eq(VALID_ID_TOKEN_HINT), eq(VALID_CLIENT_ID), isNull(), isNull());
@@ -352,9 +358,9 @@ class LogoutControllerTest {
         doNothing().when(logoutHandler).onLogoutSuccess(any(HttpServletRequest.class), any(HttpServletResponse.class),
                 eq(authentication), eq(longToken), eq(longClientId), eq(longRedirectUri), eq(longState));
 
-        mockMvc.perform(post("/oauth2/logout").param("id_token_hint", longToken).param("client_id", longClientId)
-                .param("post_logout_redirect_uri", longRedirectUri).param("state", longState))
-                .andExpect(status().isOk());
+        mockMvc.perform(post("/{tenantId}/oauth2/logout", "ecsp").param("id_token_hint", longToken)
+                .param("client_id", longClientId).param("post_logout_redirect_uri", longRedirectUri)
+                .param("state", longState)).andExpect(status().isOk());
     }
 
     @Test
@@ -363,10 +369,9 @@ class LogoutControllerTest {
         // The actual logging verification would require additional setup with logback test appenders
         when(securityContext.getAuthentication()).thenReturn(authentication);
 
-        mockMvc.perform(
-                post("/oauth2/logout").param("id_token_hint", VALID_ID_TOKEN_HINT).param("client_id", VALID_CLIENT_ID)
-                        .param("post_logout_redirect_uri", VALID_POST_LOGOUT_REDIRECT_URI).param("state", VALID_STATE))
-                .andExpect(status().isOk());
+        mockMvc.perform(post("/{tenantId}/oauth2/logout", "ecsp").param("id_token_hint", VALID_ID_TOKEN_HINT)
+                .param("client_id", VALID_CLIENT_ID).param("post_logout_redirect_uri", VALID_POST_LOGOUT_REDIRECT_URI)
+                .param("state", VALID_STATE)).andExpect(status().isOk());
 
         // Verify that the request was processed successfully
         verify(logoutHandler, times(1)).onLogoutSuccess(any(HttpServletRequest.class), any(HttpServletResponse.class),
@@ -381,7 +386,7 @@ class LogoutControllerTest {
 
         // Verify that the LogoutHandler dependency is properly injected
         // This is implicitly tested through all other tests, but we can verify construction
-        LogoutController testController = new LogoutController(logoutHandler);
+        LogoutController testController = new LogoutController(logoutHandler, uiAttributeUtils);
         assertNotNull(testController);
     }
 
@@ -392,10 +397,8 @@ class LogoutControllerTest {
         doNothing().when(logoutHandler).onLogoutSuccess(any(HttpServletRequest.class), any(HttpServletResponse.class),
                 eq(authentication), eq(VALID_ID_TOKEN_HINT), eq(VALID_CLIENT_ID), eq(relativeUri), isNull());
 
-        mockMvc.perform(post("/oauth2/logout")
-                .param("id_token_hint", VALID_ID_TOKEN_HINT)
-                .param("client_id", VALID_CLIENT_ID)
-                .param("post_logout_redirect_uri", relativeUri))
+        mockMvc.perform(post("/{tenantId}/oauth2/logout", "ecsp").param("id_token_hint", VALID_ID_TOKEN_HINT)
+                .param("client_id", VALID_CLIENT_ID).param("post_logout_redirect_uri", relativeUri))
                 .andExpect(status().isOk());
 
         verify(logoutHandler, times(1)).onLogoutSuccess(any(HttpServletRequest.class), any(HttpServletResponse.class),
@@ -409,10 +412,8 @@ class LogoutControllerTest {
         doNothing().when(logoutHandler).onLogoutSuccess(any(HttpServletRequest.class), any(HttpServletResponse.class),
                 eq(authentication), eq(VALID_ID_TOKEN_HINT), eq(VALID_CLIENT_ID), isNull(), isNull());
 
-        mockMvc.perform(post("/oauth2/logout")
-                .param("id_token_hint", VALID_ID_TOKEN_HINT)
-                .param("client_id", VALID_CLIENT_ID)
-                .param("post_logout_redirect_uri", badUri))
+        mockMvc.perform(post("/{tenantId}/oauth2/logout", "ecsp").param("id_token_hint", VALID_ID_TOKEN_HINT)
+                .param("client_id", VALID_CLIENT_ID).param("post_logout_redirect_uri", badUri))
                 .andExpect(status().isOk());
 
         verify(logoutHandler, times(1)).onLogoutSuccess(any(HttpServletRequest.class), any(HttpServletResponse.class),

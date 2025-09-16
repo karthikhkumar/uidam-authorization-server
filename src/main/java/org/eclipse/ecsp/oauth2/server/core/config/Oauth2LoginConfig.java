@@ -24,9 +24,7 @@ import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantPropert
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.oauth2.client.InMemoryOAuth2AuthorizedClientService;
@@ -37,22 +35,18 @@ import org.springframework.security.oauth2.client.registration.InMemoryClientReg
 import org.springframework.security.oauth2.client.web.AuthenticatedPrincipalOAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
-import org.springframework.util.CollectionUtils;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.UIDAM;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.COMMA_DELIMITER;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.IDP_REDIRECT_URI;
 
 /**
- * The Oauth2LoginConfig class is responsible for configuring OAuth2 login for the application.
- * It is conditionally loaded when the property "tenant.external-idp-enabled" is set to true.
+ * The Oauth2LoginConfig class is responsible for configuring OAuth2 login for the application. It provides OAuth2
+ * client registration for external identity providers when configured.
  */
 @Configuration
-@ConditionalOnProperty(name = "tenant.external-idp-enabled", havingValue = "true")
 public class Oauth2LoginConfig {
     @Value("${ignite.oauth2.issuer.protocol:http}")
     private String issuerProtocol;
@@ -62,46 +56,89 @@ public class Oauth2LoginConfig {
 
     @Value("${ignite.oauth2.issuer.prefix:}")
     private String issuerPrefix;
-    private TenantProperties tenantProperties;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Oauth2LoginConfig.class);
 
+    private final TenantConfigurationService tenantConfigurationService;
+
     /**
-     * Constructor for the Oauth2LoginConfig class.
-     * It initializes the tenant properties using the provided TenantConfigurationService.
+     * Constructor for the Oauth2LoginConfig class. It stores the TenantConfigurationService for dynamic tenant property
+     * resolution.
      *
      * @param tenantConfigurationService the service to fetch tenant properties
      */
-    @Autowired
     public Oauth2LoginConfig(TenantConfigurationService tenantConfigurationService) {
-        tenantProperties = tenantConfigurationService.getTenantProperties(UIDAM);
+        this.tenantConfigurationService = tenantConfigurationService;
+        LOGGER.info("Initialized Oauth2LoginConfig with tenant configuration service");
     }
 
+    
     /**
-     * This method is used to register IDP clients in UIDAM.
-     * It creates a list of ClientRegistrations by iterating over the list of external identity providers
-     * fetched from the tenant properties. Each external identity provider is converted into a ClientRegistration
-     * by calling the externalIdpClientRegistration method.
-     * The method then returns a ClientRegistrationRepository that is created using the list of ClientRegistrations.
+     * Creates a ClientRegistrationRepository that holds all external IDP client registrations for all tenants.
+     * It retrieves tenant properties and constructs ClientRegistrations for each external IDP registered client.
+     * If no clients are configured, it returns an empty repository.
      *
-     * @return ClientRegistrationRepository that contains the ClientRegistrations for the external identity providers.
+     * @return ClientRegistrationRepository containing all external IDP client registrations.
      */
     @Bean
     public ClientRegistrationRepository clientRegistrationRepository() {
         LOGGER.debug("## clientRegistrationRepository - START");
 
-        List<ClientRegistration> clientRegistrationList = new ArrayList<>();
-        if (!CollectionUtils.isEmpty(tenantProperties.getExternalIdpRegisteredClientList())) {
-            LOGGER.info("Registering external IDP clients in UIDAM");
-            for (ExternalIdpRegisteredClient externalIdpRegisteredClient : tenantProperties
-                    .getExternalIdpRegisteredClientList()) {
-                clientRegistrationList.add(externalIdpClientRegistration(externalIdpRegisteredClient));
+        try {
+            // Get all available tenants and process them using streams
+            java.util.Set<String> allTenants = tenantConfigurationService.getAllTenants();
+            LOGGER.info("Found {} tenant(s) for external IDP configuration", allTenants.size());
+            List<ClientRegistration> clientRegistrationList = allTenants.stream().flatMap(tenantId -> {
+                try {
+                    TenantProperties tenantProperties = tenantConfigurationService.getTenantProperties(tenantId);
+                    if (tenantProperties != null && tenantProperties.getExternalIdpRegisteredClientList() != null
+                            && !tenantProperties.getExternalIdpRegisteredClientList().isEmpty()) {
+                        LOGGER.info("Registering external IDP clients for tenant: {}", tenantId);
+                        return tenantProperties.getExternalIdpRegisteredClientList().stream()
+                                .map(externalIdpRegisteredClient -> {
+                                    // Use tenant-prefixed registration ID to avoid conflicts between tenants
+                                    String registrationId = tenantId + "-"
+                                            + externalIdpRegisteredClient.getRegistrationId();
+                                    return externalIdpClientRegistration(externalIdpRegisteredClient, registrationId);
+                                });
+                    } else {
+                        LOGGER.debug("No external IDP clients configured for tenant: {}", tenantId);
+                        return java.util.stream.Stream.empty();
+                    }
+                } catch (Exception e) {
+                    LOGGER.warn("Error loading external IDP configuration for tenant {}: {}", tenantId, e.getMessage());
+                    return java.util.stream.Stream.empty();
+                }
+            }).collect(java.util.stream.Collectors.toList());
+
+            if (!clientRegistrationList.isEmpty()) {
+                LOGGER.info("Successfully registered {} external IDP client(s) across all tenants",
+                        clientRegistrationList.size());
+                LOGGER.debug("## clientRegistrationRepository - END");
+                return new InMemoryClientRegistrationRepository(clientRegistrationList);
+            } else {
+                LOGGER.info(
+                        "No external IDP clients configured across "
+                        + "all tenants - using empty client registration repository");
+                LOGGER.debug("## clientRegistrationRepository - END");
+                return createEmptyClientRegistrationRepository();
             }
-        } else {
-            LOGGER.info("No external IDP clients configured in UIDAM");
+        } catch (Exception e) {
+            LOGGER.error("Error setting up client registration repository: {}", e.getMessage(), e);
+            return createEmptyClientRegistrationRepository();
         }
-        LOGGER.debug("## clientRegistrationRepository - END");
-        return new InMemoryClientRegistrationRepository(clientRegistrationList);
+    }
+
+    /**
+     * Creates an empty client registration repository that doesn't throw exceptions.
+     *
+     * @return ClientRegistrationRepository that returns null for any registration ID
+     */
+    private ClientRegistrationRepository createEmptyClientRegistrationRepository() {
+        return registrationId -> {
+            LOGGER.warn("No client registration found for registrationId: {}", registrationId);
+            return null;
+        };
     }
 
     /**
@@ -110,7 +147,7 @@ public class Oauth2LoginConfig {
      * associated with a ClientRegistration.
      *
      * @param clientRegistrationRepository the ClientRegistrationRepository to be used by the
-     *                                     OAuth2AuthorizedClientService.
+     *     OAuth2AuthorizedClientService.
      * @return an instance of OAuth2AuthorizedClientService.
      */
     @Bean
@@ -125,7 +162,7 @@ public class Oauth2LoginConfig {
      * associated with an authenticated principal.
      *
      * @param authorizedClientService the OAuth2AuthorizedClientService to be used by the
-     *                                OAuth2AuthorizedClientRepository.
+     *     OAuth2AuthorizedClientRepository.
      * @return an instance of OAuth2AuthorizedClientRepository.
      */
     @Bean
@@ -135,40 +172,45 @@ public class Oauth2LoginConfig {
     }
 
     /**
-     * Creates a ClientRegistration for an external identity provider.
-     * This method uses the details of the external identity provider, which are provided as an
-     * ExternalIdpRegisteredClient object, to create a ClientRegistration. The ClientRegistration includes details such
-     * as the client ID, client secret, authorization URI, token URI, user info URI, and the JWK set URI.
-     * The method also constructs the redirect URI by calling the buildIssuerBaseUrl method and appending the
-     * registration ID.
+     * Creates a ClientRegistration for an external identity provider. This method uses the details of the external
+     * identity provider, which are provided as an ExternalIdpRegisteredClient object, to create a ClientRegistration.
+     * The ClientRegistration includes details such as the client ID, client secret, authorization URI, token URI, user
+     * info URI, and the JWK set URI. The method also constructs the redirect URI by calling the buildIssuerBaseUrl
+     * method and appending the registration ID.
      *
      * @param externalIdpRegisteredClient the details of the external identity provider.
+     * @param registrationId the registration ID to use (may be tenant-prefixed).
      * @return the created ClientRegistration.
      */
-    private ClientRegistration externalIdpClientRegistration(ExternalIdpRegisteredClient externalIdpRegisteredClient) {
+    private ClientRegistration externalIdpClientRegistration(ExternalIdpRegisteredClient externalIdpRegisteredClient,
+            String registrationId) {
         LOGGER.debug("## externalIdpClientRegistration - START");
-        LOGGER.info("Registering client of provider, {}", externalIdpRegisteredClient.getClientName());
-        return ClientRegistration.withRegistrationId(externalIdpRegisteredClient.getRegistrationId())
-                .clientId(externalIdpRegisteredClient.getClientId())
+        LOGGER.info("Registering client of provider: {} with registrationId: {}",
+                externalIdpRegisteredClient.getClientName(), registrationId);
+        
+        // Extract tenant from registration ID (format: "tenant-provider")
+        String tenant = registrationId.contains("-") ? registrationId.split("-")[0] : "default";
+        String tenantPrefixedRedirectUri = buildIssuerBaseUrl() + "/" + tenant + IDP_REDIRECT_URI + registrationId;
+        
+        return ClientRegistration.withRegistrationId(registrationId).clientId(externalIdpRegisteredClient.getClientId())
                 .clientSecret(externalIdpRegisteredClient.getClientSecret())
                 .clientAuthenticationMethod(externalIdpRegisteredClient.getClientAuthMethod())
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .redirectUri(buildIssuerBaseUrl() + IDP_REDIRECT_URI + externalIdpRegisteredClient.getRegistrationId())
-                .scope(Arrays.asList(externalIdpRegisteredClient.getScope().replaceAll("\\s", "")
-                        .split(COMMA_DELIMITER)))
+                .redirectUri(tenantPrefixedRedirectUri)
+                .scope(Arrays
+                        .asList(externalIdpRegisteredClient.getScope().replaceAll("\\s", "").split(COMMA_DELIMITER)))
                 .authorizationUri(externalIdpRegisteredClient.getAuthorizationUri())
                 .tokenUri(externalIdpRegisteredClient.getTokenUri())
                 .userInfoUri(externalIdpRegisteredClient.getUserInfoUri())
                 .userNameAttributeName(externalIdpRegisteredClient.getUserNameAttributeName())
                 .jwkSetUri(externalIdpRegisteredClient.getJwkSetUri())
-                .clientName(externalIdpRegisteredClient.getClientName())
-                .build();
+                .clientName(externalIdpRegisteredClient.getClientName()).build();
     }
 
+
     /**
-     * Constructs the base URL for the issuer.
-     * This method uses the issuer protocol, host, and prefix to construct the base URL.
-     * If the issuer prefix is empty, it is ignored during the construction of the URL.
+     * Constructs the base URL for the issuer. This method uses the issuer protocol, host, and prefix to construct the
+     * base URL. If the issuer prefix is empty, it is ignored during the construction of the URL.
      *
      * @return the constructed issuer base URL as a string.
      */

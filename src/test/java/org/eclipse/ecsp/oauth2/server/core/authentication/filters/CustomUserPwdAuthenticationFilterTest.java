@@ -20,6 +20,7 @@ package org.eclipse.ecsp.oauth2.server.core.authentication.filters;
 
 import jakarta.servlet.ServletException;
 import org.eclipse.ecsp.oauth2.server.core.authentication.tokens.CustomUserPwdAuthenticationToken;
+import org.eclipse.ecsp.oauth2.server.core.metrics.AuthorizationMetricsService;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -58,6 +59,9 @@ class CustomUserPwdAuthenticationFilterTest {
 
     @MockitoBean
     TenantConfigurationService tenantConfigurationService;
+
+    @MockitoBean
+    AuthorizationMetricsService authorizationMetricsService;
 
     MockHttpServletRequest mockHttpServletRequest;
     MockHttpServletResponse mockHttpServletResponse;

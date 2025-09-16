@@ -18,15 +18,30 @@
 
 package org.eclipse.ecsp.oauth2.server.core.service;
 
+import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.AccountProperties;
+import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.ClientProperties;
+import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.MultiTenantProperties;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
+import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.UserProperties;
+import org.eclipse.ecsp.oauth2.server.core.util.SessionTenantResolver;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.test.util.ReflectionTestUtils;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.ECSP;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_CONTACT_NAME;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_EMAIL;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_EXTERNAL_IDP_CLIENT_ID;
@@ -37,20 +52,30 @@ import static org.eclipse.ecsp.oauth2.server.core.common.constants.Authorization
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_KEYSTORE_FILENAME;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_KEYSTORE_PASS;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_PHONE_NUMBER;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.UIDAM;
 import static org.eclipse.ecsp.oauth2.server.core.test.TestConstants.ENFORCE_AFTER_FAILURE_COUNT;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
 
 /**
  * This class tests the functionality of the TenantConfigurationService.
  */
-@ExtendWith(SpringExtension.class)
-@EnableConfigurationProperties(value = TenantProperties.class)
-@ContextConfiguration(classes = {TenantConfigurationService.class})
-@TestPropertySource("classpath:application-test.properties")
+@ExtendWith(MockitoExtension.class)
 class TenantConfigurationServiceTest {
-    @Autowired
+    
+    @Mock
+    private MultiTenantProperties multiTenantProperties;
+    
     private TenantConfigurationService tenantConfigurationService;
+
+    @BeforeEach
+    void setUp() {
+        tenantConfigurationService = new TenantConfigurationService(multiTenantProperties);
+    }
 
     /**
      * This test method tests the getTenantProperties method of the TenantConfigurationService.
@@ -58,7 +83,18 @@ class TenantConfigurationServiceTest {
      */
     @Test
     void getTenantPropertiesTest() {
-        TenantProperties tenantProperties = tenantConfigurationService.getTenantProperties(UIDAM);
+        // Setup the expected tenant properties
+        TenantProperties expectedTenantProperties = createMockTenantProperties();
+        
+        // Setup the mock to return the tenant properties
+        Map<String, TenantProperties> tenants = new HashMap<>();
+        tenants.put(ECSP, expectedTenantProperties);
+        when(multiTenantProperties.getTenants()).thenReturn(tenants);
+        
+        // Execute the method under test
+        TenantProperties tenantProperties = tenantConfigurationService.getTenantProperties(ECSP);
+        
+        // Verify the results
         assertEquals("uidam", tenantProperties.getTenantId());
         assertEquals("uidam", tenantProperties.getTenantName());
         assertEquals("ecsp", tenantProperties.getAlias());
@@ -86,5 +122,316 @@ class TenantConfigurationServiceTest {
         assertEquals("uidamauthserver.jks", tenantProperties.getKeyStore().get(TENANT_KEYSTORE_FILENAME));
         assertEquals("uidam-test-pwd", tenantProperties.getKeyStore().get(TENANT_KEYSTORE_PASS));
         assertEquals("uidam-dev", tenantProperties.getKeyStore().get(TENANT_KEYSTORE_ALIAS));
+    }
+    
+    private TenantProperties createMockTenantProperties() {
+        TenantProperties tenantProperties = new TenantProperties();
+        tenantProperties.setTenantId("uidam");
+        tenantProperties.setTenantName("uidam");
+        tenantProperties.setAlias("ecsp");
+        
+        // Client properties
+        ClientProperties clientProperties = new ClientProperties();
+        clientProperties.setAccessTokenTtl(1);
+        clientProperties.setIdTokenTtl(1);
+        clientProperties.setRefreshTokenTtl(1);
+        clientProperties.setAuthCodeTtl(1);
+        clientProperties.setReuseRefreshToken(false);
+        clientProperties.setSecretEncryptionKey("ChangeMe");
+        clientProperties.setSecretEncryptionSalt("ChangeMe");
+        tenantProperties.setClient(clientProperties);
+        
+        // Contact details
+        HashMap<String, String> contactDetails = new HashMap<>();
+        contactDetails.put(TENANT_CONTACT_NAME, "admin");
+        contactDetails.put(TENANT_PHONE_NUMBER, "8888888888");
+        contactDetails.put(TENANT_EMAIL, "john.doe@domain.com");
+        tenantProperties.setContactDetails(contactDetails);
+        
+        // User properties
+        UserProperties userProperties = new UserProperties();
+        userProperties.setCaptchaAfterInvalidFailures(ENFORCE_AFTER_FAILURE_COUNT);
+        userProperties.setCaptchaRequired(Boolean.FALSE);
+        tenantProperties.setUser(userProperties);
+        
+        // Account properties
+        AccountProperties accountProperties = new AccountProperties();
+        accountProperties.setAccountId("ecsp");
+        accountProperties.setAccountName("ecsp");
+        accountProperties.setAccountType("ecsp");
+        tenantProperties.setAccount(accountProperties);
+        
+        // External IDP details
+        HashMap<String, String> externalIdpDetails = new HashMap<>();
+        externalIdpDetails.put(TENANT_EXTERNAL_IDP_CLIENT_ID, "ignite");
+        externalIdpDetails.put(TENANT_EXTERNAL_IDP_CLIENT_SECRET, "secret");
+        tenantProperties.setExternalIdpDetails(externalIdpDetails);
+        
+        // External URLs
+        HashMap<String, String> externalUrls = new HashMap<>();
+        externalUrls.put(TENANT_EXTERNAL_URLS_USER_BY_USERNAME_ENDPOINT, "/v1/users/{userName}/byUserName");
+        externalUrls.put(TENANT_EXTERNAL_URLS_CLIENT_BY_CLIENT_ID_ENDPOINT, "/v1/oauth2/client/{clientId}");
+        tenantProperties.setExternalUrls(externalUrls);
+        
+        // Key store
+        HashMap<String, String> keyStore = new HashMap<>();
+        keyStore.put(TENANT_KEYSTORE_FILENAME, "uidamauthserver.jks");
+        keyStore.put(TENANT_KEYSTORE_PASS, "uidam-test-pwd");
+        keyStore.put(TENANT_KEYSTORE_ALIAS, "uidam-dev");
+        tenantProperties.setKeyStore(keyStore);
+        
+        return tenantProperties;
+    }
+
+    /**
+     * Test the getCurrentTenantProperties method using SessionTenantResolver.
+     */
+    @Test
+    void getTenantPropertiesCurrentTenantTest() {
+        // Setup mock data
+        TenantProperties expectedTenantProperties = createMockTenantProperties();
+        Map<String, TenantProperties> tenants = new HashMap<>();
+        tenants.put(ECSP, expectedTenantProperties);
+        when(multiTenantProperties.getTenants()).thenReturn(tenants);
+        
+        // Mock SessionTenantResolver to return the expected tenant
+        try (MockedStatic<SessionTenantResolver> resolver = mockStatic(SessionTenantResolver.class)) {
+            resolver.when(SessionTenantResolver::getCurrentTenant).thenReturn(ECSP);
+            
+            // Execute the method under test
+            TenantProperties result = tenantConfigurationService.getTenantProperties();
+            
+            // Verify the result
+            assertNotNull(result);
+            assertEquals("uidam", result.getTenantId());
+            assertEquals("uidam", result.getTenantName());
+        }
+    }
+
+    /**
+     * Test the getCurrentTenantProperties method when current tenant is null.
+     */
+    @Test
+    void getTenantPropertiesCurrentTenantNullTest() {
+        // Setup mock data
+        Map<String, TenantProperties> tenants = new HashMap<>();
+        when(multiTenantProperties.getTenants()).thenReturn(tenants);
+        
+        // Mock SessionTenantResolver to return null
+        try (MockedStatic<SessionTenantResolver> resolver = mockStatic(SessionTenantResolver.class)) {
+            resolver.when(SessionTenantResolver::getCurrentTenant).thenReturn(null);
+            
+            // Execute the method under test
+            TenantProperties result = tenantConfigurationService.getTenantProperties();
+            
+            // Verify the result is null when tenant is null
+            assertNull(result);
+        }
+    }
+
+    /**
+     * Test the tenantExists method with existing tenant.
+     */
+    @Test
+    void tenantExistsTest() {
+        // Setup tenant configuration
+        TenantProperties tenantProperties = createMockTenantProperties();
+        Map<String, TenantProperties> tenants = new HashMap<>();
+        tenants.put(ECSP, tenantProperties);
+        when(multiTenantProperties.getTenants()).thenReturn(tenants);
+        
+        // Use ReflectionTestUtils to set the tenantIds field
+        List<String> tenantIdsList = Arrays.asList(ECSP, "sdp");
+        ReflectionTestUtils.setField(tenantConfigurationService, "tenantIds", tenantIdsList);
+        
+        // Execute the method under test
+        boolean exists = tenantConfigurationService.tenantExists(ECSP);
+        
+        // Verify the result
+        assertTrue(exists);
+    }
+
+    /**
+     * Test the tenantExists method with non-existing tenant.
+     */
+    @Test
+    void tenantExistsNonExistingTest() {
+        // Setup tenant configuration
+        Map<String, TenantProperties> tenants = new HashMap<>();
+        tenants.put(ECSP, createMockTenantProperties());
+        when(multiTenantProperties.getTenants()).thenReturn(tenants);
+        
+        // Use ReflectionTestUtils to set the tenantIds field
+        List<String> tenantIdsList = Arrays.asList(ECSP);
+        ReflectionTestUtils.setField(tenantConfigurationService, "tenantIds", tenantIdsList);
+        
+        // Execute the method under test
+        boolean exists = tenantConfigurationService.tenantExists("nonexistent");
+        
+        // Verify the result
+        assertFalse(exists);
+    }
+
+    /**
+     * Test the tenantExists method when tenants map is null.
+     */
+    @Test
+    void tenantExistsNullTenantsTest() {
+        // Setup null tenants
+        when(multiTenantProperties.getTenants()).thenReturn(null);
+        
+        // Execute the method under test
+        boolean exists = tenantConfigurationService.tenantExists(ECSP);
+        
+        // Verify the result is false when tenants is null
+        assertFalse(exists);
+    }
+
+    /**
+     * Test the getDefaultTenantProperties method.
+     */
+    @Test
+    void getDefaultTenantPropertiesTest() {
+        // Setup mock default tenant properties
+        TenantProperties defaultTenantProperties = createMockTenantProperties();
+        when(multiTenantProperties.getDefaultTenant()).thenReturn(defaultTenantProperties);
+        
+        // Execute the method under test
+        TenantProperties result = tenantConfigurationService.getDefaultTenantProperties();
+        
+        // Verify the result
+        assertNotNull(result);
+        assertEquals("uidam", result.getTenantId());
+        assertEquals("uidam", result.getTenantName());
+    }
+
+    /**
+     * Test the getDefaultTenantId method.
+     */
+    @Test
+    void getDefaultTenantIdTest() {
+        // Setup mock default tenant ID
+        when(multiTenantProperties.getDefaultTenantId()).thenReturn("default-tenant");
+        
+        // Execute the method under test
+        String result = tenantConfigurationService.getDefaultTenantId();
+        
+        // Verify the result
+        assertEquals("default-tenant", result);
+    }
+
+    /**
+     * Test the getAllTenants method with existing tenants.
+     */
+    @Test
+    void getAllTenantsTest() {
+        // Setup mock tenants
+        Set<String> availableTenants = new HashSet<>();
+        availableTenants.add(ECSP);
+        availableTenants.add("sdp");
+        
+        Map<String, TenantProperties> tenants = new HashMap<>();
+        tenants.put(ECSP, createMockTenantProperties());
+        tenants.put("sdp", createMockTenantProperties());
+        
+        when(multiTenantProperties.getTenants()).thenReturn(tenants);
+        when(multiTenantProperties.getAvailableTenants()).thenReturn(availableTenants);
+        
+        // Execute the method under test
+        Set<String> result = tenantConfigurationService.getAllTenants();
+        
+        // Verify the result
+        assertNotNull(result);
+        final int expectedTenantCount = 2;
+        assertEquals(expectedTenantCount, result.size());
+        assertTrue(result.contains(ECSP));
+        assertTrue(result.contains("sdp"));
+    }
+
+    /**
+     * Test the getAllTenants method when tenants map is null.
+     */
+    @Test
+    void getAllTenantsNullTest() {
+        // Setup null tenants
+        when(multiTenantProperties.getTenants()).thenReturn(null);
+        
+        // Execute the method under test
+        Set<String> result = tenantConfigurationService.getAllTenants();
+        
+        // Verify the result is empty set when tenants is null
+        assertNotNull(result);
+        assertTrue(result.isEmpty());
+    }
+
+    /**
+     * Test the getTenantProperties method when tenants map is null.
+     */
+    @Test
+    void getTenantPropertiesNullTenantsTest() {
+        // Setup null tenants
+        when(multiTenantProperties.getTenants()).thenReturn(null);
+        
+        // Execute the method under test
+        TenantProperties result = tenantConfigurationService.getTenantProperties(ECSP);
+        
+        // Verify the result is null when tenants is null
+        assertNull(result);
+    }
+
+    /**
+     * Test the getTenantProperties method when tenant is not found.
+     */
+    @Test
+    void getTenantPropertiesNotFoundTest() {
+        // Setup empty tenants map
+        Map<String, TenantProperties> tenants = new HashMap<>();
+        when(multiTenantProperties.getTenants()).thenReturn(tenants);
+        
+        // Execute the method under test
+        TenantProperties result = tenantConfigurationService.getTenantProperties("nonexistent");
+        
+        // Verify the result is null when tenant is not found
+        assertNull(result);
+    }
+
+    /**
+     * Test constructor with null multiTenantProperties.getTenants().
+     */
+    @Test
+    void constructorWithNullTenantsTest() {
+        // Setup mock with null tenants
+        when(multiTenantProperties.getTenants()).thenReturn(null);
+        
+        // Create service instance - should handle null gracefully
+        TenantConfigurationService service = new TenantConfigurationService(multiTenantProperties);
+        
+        // Verify service was created
+        assertNotNull(service);
+        
+        // Test a method to ensure null safety works
+        TenantProperties result = service.getTenantProperties(ECSP);
+        assertNull(result);
+    }
+
+    /**
+     * Test constructor with valid multiTenantProperties.
+     */
+    @Test
+    void constructorWithValidTenantsTest() {
+        // Setup mock with valid tenants
+        Map<String, TenantProperties> tenants = new HashMap<>();
+        tenants.put(ECSP, createMockTenantProperties());
+        when(multiTenantProperties.getTenants()).thenReturn(tenants);
+        
+        // Create service instance
+        TenantConfigurationService service = new TenantConfigurationService(multiTenantProperties);
+        
+        // Verify service was created
+        assertNotNull(service);
+        
+        // Test a method to ensure functionality works
+        TenantProperties result = service.getTenantProperties(ECSP);
+        assertNotNull(result);
     }
 }

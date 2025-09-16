@@ -32,6 +32,8 @@ import org.eclipse.ecsp.oauth2.server.core.exception.PasswordRecoveryException;
 import org.eclipse.ecsp.oauth2.server.core.exception.UidamApplicationException;
 import org.eclipse.ecsp.oauth2.server.core.exception.UserNotFoundException;
 import org.eclipse.ecsp.oauth2.server.core.interceptor.ClientAddCorrelationIdInterceptor;
+import org.eclipse.ecsp.oauth2.server.core.metrics.AuthorizationMetricsService;
+import org.eclipse.ecsp.oauth2.server.core.metrics.MetricType;
 import org.eclipse.ecsp.oauth2.server.core.request.dto.BaseUserDto;
 import org.eclipse.ecsp.oauth2.server.core.request.dto.FederatedUserDto;
 import org.eclipse.ecsp.oauth2.server.core.request.dto.UserDto;
@@ -46,6 +48,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2Error;
@@ -71,65 +74,117 @@ import static org.eclipse.ecsp.oauth2.server.core.common.constants.Authorization
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_EXTERNAL_URLS_USER_MANAGEMENT_ENV;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_EXTERNAL_URLS_USER_RECOVERY_NOTIF_ENDPOINT;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_EXTERNAL_URLS_USER_RESET_PASSWORD_ENDPOINT;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.UIDAM;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.UNEXPECTED_ERROR;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.USER_ALREADY_EXISTS_PLEASE_TRY_AGAIN;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.ACCOUNT_NAME_HEADER;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.EMPTY_STRING;
+import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.TENANT_ID_HEADER;
 import static org.eclipse.ecsp.oauth2.server.core.utils.CommonMethodsUtils.obtainRecaptchaResponse;
 import static org.eclipse.ecsp.oauth2.server.core.utils.RequestResponseLogger.logRequest;
 import static org.eclipse.ecsp.oauth2.server.core.utils.RequestResponseLogger.logResponse;
 
 /**
- * The UserManagementClient class manages connections with the User Management Service.
- * It uses a WebClient to make HTTP requests and an ObjectMapper to serialize and deserialize JSON.
+ * The UserManagementClient class manages connections with the User Management Service. It uses a WebClient to make HTTP
+ * requests and an ObjectMapper to serialize and deserialize JSON.
  */
 @Component
 public class UserManagementClient {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(UserManagementClient.class);
 
-    private WebClient webClient;
-
-    private TenantProperties tenantProperties;
-    @Autowired
-    private CaptchaServiceImpl captchaServiceImpl;
-
-    /**
-     * Constructor for UserManagementClient.
-     * It initializes tenantProperties using the provided TenantConfigurationService.
-     * It also builds the WebClient with the base URL from tenantProperties.
-     *
-     * @param tenantConfigurationService the service to retrieve tenant properties from
-     */
-    @Autowired
-    public UserManagementClient(TenantConfigurationService tenantConfigurationService) {
-        tenantProperties = tenantConfigurationService.getTenantProperties(UIDAM);
-    }
-
     private ObjectMapper objectMapper = new ObjectMapper();
 
+    private final TenantConfigurationService tenantConfigurationService;
+    private final CaptchaServiceImpl captchaServiceImpl;
+    private final WebClient webClient;
+    private final AuthorizationMetricsService metricsService;
+
     /**
-     * This method is called after the constructor.
-     * It configures the ObjectMapper to include non-null properties and not fail on unknown properties.
-     * It also builds the WebClient with the base URL from tenantProperties.
+     * Constructor for UserManagementClient. It initializes the tenant configuration service for dynamic tenant
+     * resolution.
+     *
+     * @param tenantConfigurationService the service to retrieve tenant properties from
+     * @param captchaServiceImpl the captcha service implementation
+     */
+    @Autowired
+    public UserManagementClient(TenantConfigurationService tenantConfigurationService,
+            CaptchaServiceImpl captchaServiceImpl,
+            AuthorizationMetricsService metricsService) {
+        this.tenantConfigurationService = tenantConfigurationService;
+        this.captchaServiceImpl = captchaServiceImpl;
+        this.metricsService = metricsService;
+        this.webClient = null; // Will use dynamic WebClient creation
+    }
+
+    /**
+     * Constructor for UserManagementClient with WebClient injection (mainly for testing).
+     *
+     * @param tenantConfigurationService the service to retrieve tenant properties from
+     * @param captchaServiceImpl the captcha service implementation
+     * @param webClient the WebClient to use for HTTP requests
+     */
+    public UserManagementClient(TenantConfigurationService tenantConfigurationService,
+            CaptchaServiceImpl captchaServiceImpl, WebClient webClient,
+            AuthorizationMetricsService metricsService) {
+        this.tenantConfigurationService = tenantConfigurationService;
+        this.captchaServiceImpl = captchaServiceImpl;
+        this.webClient = webClient;
+        this.metricsService = metricsService;
+    }
+
+    /**
+     * This method is called after the constructor. It configures the ObjectMapper to include non-null properties and
+     * not fail on unknown properties.
      */
     @PostConstruct
     private void init() {
-        String baseUrl = tenantProperties.getExternalUrls().get(TENANT_EXTERNAL_URLS_USER_MANAGEMENT_ENV);
-        this.webClient = WebClient.builder()
-                .baseUrl(baseUrl)
-                .filter(ClientAddCorrelationIdInterceptor.addCorrelationIdAndContentType())
-                .filter(logRequest()).filter(logResponse()).build();
         objectMapper.setSerializationInclusion(Include.NON_NULL)
                 .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-
     }
 
     /**
-     * This method fetches the user details from the User Management Service.
-     * It makes a GET request to the User Management Service and retrieves the user details.
-     * If an error occurs during the process, it throws an OAuth2AuthenticationException.
+     * Get the current tenant's properties and create a WebClient for the current tenant.
+     *
+     * @return WebClient configured for the current tenant
+     */
+    private WebClient getWebClientForCurrentTenant() {
+        // If WebClient is injected (for testing), use it directly
+        if (webClient != null) {
+            return webClient;
+        }
+
+        TenantProperties tenantProperties = tenantConfigurationService.getTenantProperties();
+        if (tenantProperties == null) {
+            throw new IllegalStateException("No tenant properties found for current tenant");
+        }
+
+        String baseUrl = tenantProperties.getExternalUrls().get(TENANT_EXTERNAL_URLS_USER_MANAGEMENT_ENV);
+        if (baseUrl == null) {
+            throw new IllegalStateException("No user management base URL configured for current tenant");
+        }
+
+        return WebClient.builder().baseUrl(baseUrl)
+                .filter(ClientAddCorrelationIdInterceptor.addCorrelationIdAndContentType()).filter(logRequest())
+                .filter(logResponse()).build();
+    }
+
+    /**
+     * Get the current tenant's properties.
+     *
+     * @return the tenant properties for the current tenant
+     */
+    private TenantProperties getCurrentTenantProperties() {
+        TenantProperties tenantProperties = tenantConfigurationService.getTenantProperties();
+        if (tenantProperties == null) {
+            throw new IllegalStateException("No tenant properties found for current tenant");
+        }
+        return tenantProperties;
+    }
+
+    /**
+     * This method fetches the user details from the User Management Service. It makes a GET request to the User
+     * Management Service and retrieves the user details. If an error occurs during the process, it throws an
+     * OAuth2AuthenticationException.
      *
      * @param username the username of the user whose details are to be fetched
      * @param accountName the account name of the user
@@ -137,17 +192,19 @@ public class UserManagementClient {
      */
     public UserDetailsResponse getUserDetailsByUsername(String username, String accountName) {
         LOGGER.info("Fetching user details for username {} from user-mgmt account Name {}", username, accountName);
-        String uri = tenantProperties.getExternalUrls().get(TENANT_EXTERNAL_URLS_USER_BY_USERNAME_ENDPOINT);
-        if (!StringUtils.hasText(accountName)) {
-            accountName = tenantProperties.getAccount().getAccountName();
-        }
-        LOGGER.debug("Account name {}", accountName);
-        UserDetailsResponse userDetailsResponse = null;
         try {
-            userDetailsResponse = webClient.method(HttpMethod.GET)
-                    .uri(uri,
-                            username)
-                    .header(ACCOUNT_NAME_HEADER, accountName).accept(MediaType.APPLICATION_JSON).retrieve()
+            TenantProperties tenantProperties = getCurrentTenantProperties();
+            WebClient currentWebClient = getWebClientForCurrentTenant();
+            String uri = tenantProperties.getExternalUrls().get(TENANT_EXTERNAL_URLS_USER_BY_USERNAME_ENDPOINT);
+            if (!StringUtils.hasText(accountName)) {
+                accountName = tenantProperties.getAccount().getAccountName();
+            }
+            LOGGER.debug("Account name {}", accountName);
+            UserDetailsResponse userDetailsResponse = null;
+            userDetailsResponse = currentWebClient.method(HttpMethod.GET).uri(uri, username)
+                    .header(ACCOUNT_NAME_HEADER, accountName)
+                    .header(TENANT_ID_HEADER, tenantProperties.getTenantId())
+                    .accept(MediaType.APPLICATION_JSON).retrieve()
                     .bodyToMono(UserDetailsResponse.class).block();
             userDetailsResponse = objectMapper.convertValue(userDetailsResponse,
                     new TypeReference<UserDetailsResponse>() {
@@ -157,39 +214,32 @@ public class UserManagementClient {
         } catch (WebClientResponseException ex) {
             LOGGER.error("Web client error while fetching user details for username {} from user-mgmt, ex: {}",
                     username, ex);
-            UserErrorResponse userErrorResponse = ex.getResponseBodyAs(UserErrorResponse.class);
-            String errorCode;
-            String errorDesc = "";
-            if (userErrorResponse != null) {
-                if (HttpStatus.NOT_FOUND == ex.getStatusCode()) {
-                    errorCode = CustomOauth2TokenGenErrorCodes.USER_NOT_FOUND.name();
-                    errorDesc = userErrorResponse.getMessage();
-                } else if (HttpStatus.FORBIDDEN == ex.getStatusCode()) {
-                    errorCode = CustomOauth2TokenGenErrorCodes.USER_NOT_ACTIVE.name();
-                    errorDesc = CustomOauth2TokenGenErrorCodes.USER_NOT_ACTIVE.getDescription();
-                } else {
-                    errorCode = OAuth2ErrorCodes.SERVER_ERROR;
-                    errorDesc = userErrorResponse.getMessage();
-                }
-                
-            }  else {
-                errorCode = OAuth2ErrorCodes.SERVER_ERROR;
-                errorDesc = "Unable to validate " + OAuth2ParameterNames.USERNAME;
+            UserErrorResponse userErrorResponse = null;
+            try {
+                userErrorResponse = ex.getResponseBodyAs(UserErrorResponse.class);
+            } catch (IllegalStateException e) {
+                LOGGER.debug("Could not decode response body: {}", e.getMessage());
             }
-            OAuth2Error error = new OAuth2Error(errorCode, errorDesc, null);
+            TenantProperties tenantProperties = getCurrentTenantProperties();
+            String tenantId = tenantProperties.getTenantId();
+            String errorMessage = userErrorResponse != null ? userErrorResponse.getMessage() : null;
+            OAuth2Error error = handleUserFetchError(ex.getStatusCode(), errorMessage, tenantId);
+            metricsService.incrementMetricsForTenant(tenantId, MetricType.FAILURE_LOGIN_ATTEMPTS);
             throw new OAuth2AuthenticationException(error);
         } catch (Exception ex) {
             LOGGER.error("error while fetching user details for username {} from user-mgmt, ex: {}", username, ex);
             OAuth2Error error = new OAuth2Error(OAuth2ErrorCodes.SERVER_ERROR,
                     "Unable to validate " + OAuth2ParameterNames.USERNAME, null);
+            TenantProperties tenantProperties = getCurrentTenantProperties();
+            String tenantId = tenantProperties.getTenantId();
+            metricsService.incrementMetricsForTenant(tenantId, MetricType.FAILURE_LOGIN_ATTEMPTS);
             throw new OAuth2AuthenticationException(error);
         }
     }
 
     /**
-     * This method adds a user event to the User Management Service.
-     * It makes a POST request to the User Management Service to add the user event.
-     * If an error occurs during the process, it throws an OAuth2AuthenticationException.
+     * This method adds a user event to the User Management Service. It makes a POST request to the User Management
+     * Service to add the user event. If an error occurs during the process, it throws an OAuth2AuthenticationException.
      *
      * @param userEvent the user event to be added
      * @param userId the ID of the user for whom the event is to be added
@@ -197,39 +247,50 @@ public class UserManagementClient {
      */
     public String addUserEvent(UserEvent userEvent, String userId) {
         LOGGER.debug("Adding user event {} details for userId {} to user-mgmt", userEvent.getType(), userId);
-        String uri = tenantProperties.getExternalUrls().get(TENANT_EXTERNAL_URLS_ADD_USER_EVENTS_ENDPOINT);
-        String response;
+
         try {
-            response = webClient.method(HttpMethod.POST)
-                    .uri(uri, userId)
+            TenantProperties tenantProperties = getCurrentTenantProperties();
+            WebClient currentWebClient = getWebClientForCurrentTenant();
+
+            String uri = tenantProperties.getExternalUrls().get(TENANT_EXTERNAL_URLS_ADD_USER_EVENTS_ENDPOINT);
+            String response;
+
+            response = currentWebClient.method(HttpMethod.POST).uri(uri, userId)
                     .header(IgniteOauth2CoreConstants.CORRELATION_ID, UUID.randomUUID().toString())
-                    .contentType(MediaType.APPLICATION_JSON).bodyValue(userEvent)
-                    .retrieve()
-                    .bodyToMono(String.class).block();
+                    .header(TENANT_ID_HEADER, tenantProperties.getTenantId())
+                    .contentType(MediaType.APPLICATION_JSON).bodyValue(userEvent).retrieve().bodyToMono(String.class)
+                    .block();
+            return response;
         } catch (Exception ex) {
             LOGGER.error("error while processing user event details for userId {} from user-mgmt, ex: {}", userId,
                     ex.getMessage());
             OAuth2Error error = new OAuth2Error(OAuth2ErrorCodes.SERVER_ERROR, "failed to process user event", null);
             throw new OAuth2AuthenticationException(error);
         }
-        return response;
     }
 
     /**
-     * This method sends a user password recovery link to the User Management Service.
-     * It makes a POST request to the User Management Service to send the password recovery link.
-     * If an error occurs during the process, it throws an appropriate exception.
+     * This method sends a user password recovery link to the User Management Service. It makes a POST request to the
+     * User Management Service to send the password recovery link. If an error occurs during the process, it throws an
+     * appropriate exception.
      *
      * @param username the username of the user who needs to recover their password
      * @param accountName the account name of the user
      */
     public void sendUserResetPasswordNotification(String username, String accountName) {
         LOGGER.info("sending user password recovery link details for userid {} to user-mgmt", username);
-        String uri = tenantProperties.getExternalUrls().get(TENANT_EXTERNAL_URLS_USER_RECOVERY_NOTIF_ENDPOINT);
+
         try {
-            webClient.method(HttpMethod.POST).uri(uri, username)
+            TenantProperties tenantProperties = getCurrentTenantProperties();
+            WebClient currentWebClient = getWebClientForCurrentTenant();
+
+            String uri = tenantProperties.getExternalUrls().get(TENANT_EXTERNAL_URLS_USER_RECOVERY_NOTIF_ENDPOINT);
+
+            currentWebClient.method(HttpMethod.POST).uri(uri, username)
                     .header(IgniteOauth2CoreConstants.CORRELATION_ID, UUID.randomUUID().toString())
-                    .header(ACCOUNT_NAME_HEADER, accountName).contentType(MediaType.APPLICATION_JSON).retrieve()
+                    .header(ACCOUNT_NAME_HEADER, accountName)
+                    .header(TENANT_ID_HEADER, tenantProperties.getTenantId())
+                    .contentType(MediaType.APPLICATION_JSON).retrieve()
                     .toBodilessEntity().block();
         } catch (WebClientResponseException ex) {
             if (ex.getStatusCode().isSameCodeAs(HttpStatus.NOT_FOUND)) {
@@ -245,28 +306,29 @@ public class UserManagementClient {
     }
 
     /**
-     * This method updates a user's password using a recovery secret.
-     * It makes a POST request to the User Management Service to update the user's password.
-     * If an error occurs during the process, it throws a UidamApplicationException.
+     * This method updates a user's password using a recovery secret. It makes a POST request to the User Management
+     * Service to update the user's password. If an error occurs during the process, it throws a
+     * UidamApplicationException.
      *
      * @param updatePasswordData the data needed to update the user's password
      * @return a string response from the User Management Service
      */
     public String updateUserPasswordUsingRecoverySecret(UpdatePasswordData updatePasswordData) {
         LOGGER.info("updating user password using recovery secret details to user-mgmt");
-        String uri = tenantProperties.getExternalUrls().get(TENANT_EXTERNAL_URLS_USER_RESET_PASSWORD_ENDPOINT);
-        String response = null;
-
         try {
-            response = webClient.method(HttpMethod.POST)
-                    .uri(uri)
+            TenantProperties tenantProperties = getCurrentTenantProperties();
+            WebClient currentWebClient = getWebClientForCurrentTenant();
+
+            String uri = tenantProperties.getExternalUrls().get(TENANT_EXTERNAL_URLS_USER_RESET_PASSWORD_ENDPOINT);
+            String response = null;
+            response = currentWebClient.method(HttpMethod.POST).uri(uri)
                     .header(IgniteOauth2CoreConstants.CORRELATION_ID, UUID.randomUUID().toString())
+                    .header(TENANT_ID_HEADER, tenantProperties.getTenantId())
                     .contentType(MediaType.APPLICATION_JSON).bodyValue(updatePasswordData).retrieve()
                     .bodyToMono(String.class).block();
-
+            return response;
         } catch (WebClientResponseException ex) {
-            LOGGER.error(
-                    "error while processing user password recovery using recovery secret from user-mgmt, ex: {0}",
+            LOGGER.error("error while processing user password recovery using recovery secret from user-mgmt, ex: {0}",
                     ex);
             if (HttpStatus.BAD_REQUEST.equals(ex.getStatusCode())) {
                 throw new UidamApplicationException(ex.getResponseBodyAsString());
@@ -274,10 +336,10 @@ public class UserManagementClient {
                 throw new UidamApplicationException("failed to process request");
             }
         }
-        return response;
     }
 
-    /** This method is used to create self user in the User Management Service.
+    /**
+     * This method is used to create self user in the User Management Service.
      *
      * @param userDto used as body for the request.
      * @param request HttpServletRequest
@@ -286,18 +348,20 @@ public class UserManagementClient {
     public UserDetailsResponse selfCreateUser(UserDto userDto, HttpServletRequest request) {
         LOGGER.debug("## selfCreateUser - START");
         LOGGER.info("Self Create user call for username {} to user-mgmt", userDto.getUserName());
-        String uri = tenantProperties.getExternalUrls().get(TENANT_EXTERNAL_URLS_SELF_CREATE_USER);
+
         try {
+            TenantProperties tenantProperties = getCurrentTenantProperties();
+            WebClient currentWebClient = getWebClientForCurrentTenant();
+
+            String uri = tenantProperties.getExternalUrls().get(TENANT_EXTERNAL_URLS_SELF_CREATE_USER);
             userDto = validateCaptchaAndAddRequiredParams(userDto, request);
-            UserDetailsResponse userDetailsResponse = webClient.method(HttpMethod.POST)
-                    .uri(uri)
+            UserDetailsResponse userDetailsResponse = currentWebClient.method(HttpMethod.POST).uri(uri)
                     .header(IgniteOauth2CoreConstants.CORRELATION_ID, UUID.randomUUID().toString())
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .bodyValue(userDto)
-                    .retrieve()
-                    .bodyToMono(UserDetailsResponse.class)
-                    .block();
-            return objectMapper.convertValue(userDetailsResponse, new TypeReference<UserDetailsResponse>() {});
+                    .header(TENANT_ID_HEADER, tenantProperties.getTenantId())
+                    .contentType(MediaType.APPLICATION_JSON).bodyValue(userDto).retrieve()
+                    .bodyToMono(UserDetailsResponse.class).block();
+            return objectMapper.convertValue(userDetailsResponse, new TypeReference<UserDetailsResponse>() {
+            });
         } catch (WebClientResponseException ex) {
             LOGGER.error("Webclient Exception while creating user for username {} from user-mgmt, ex: ",
                     userDto.getUserName(), ex);
@@ -340,6 +404,7 @@ public class UserManagementClient {
     private void addRequiredParameters(UserDto userDto) {
         LOGGER.debug("## addRequiredParameters - START");
         if (CollectionUtils.isEmpty(userDto.getRoles())) {
+            TenantProperties tenantProperties = getCurrentTenantProperties();
             userDto.setRoles(Collections.singletonList(tenantProperties.getUser().getDefaultRole()));
         }
         if (!StringUtils.hasText(userDto.getUserName())) {
@@ -350,9 +415,14 @@ public class UserManagementClient {
     }
 
     private <T extends BaseUserDto> void handleWebClientResponseException(WebClientResponseException ex, T userDto) {
-        LOGGER.error("Web client error while creating user for username {} from user-mgmt, ex: ",
-                userDto.getUserName(), ex);
-        UserErrorResponse userErrorResponse = ex.getResponseBodyAs(UserErrorResponse.class);
+        LOGGER.error("Web client error while creating user for username {} from user-mgmt, ex: ", userDto.getUserName(),
+                ex);
+        UserErrorResponse userErrorResponse = null;
+        try {
+            userErrorResponse = ex.getResponseBodyAs(UserErrorResponse.class);
+        } catch (IllegalStateException e) {
+            LOGGER.debug("Could not decode response body: {}", e.getMessage());
+        }
         String errorCode;
         String errorDesc = UNEXPECTED_ERROR;
 
@@ -386,37 +456,41 @@ public class UserManagementClient {
     }
 
     /**
-     * Fetches the password policy from the User Management Service.
-     * This method makes a GET request to the User Management Service to retrieve the password policy.
-     * If an error occurs during the process, it throws an OAuth2AuthenticationException.
+     * Fetches the password policy from the User Management Service. This method makes a GET request to the User
+     * Management Service to retrieve the password policy. If an error occurs during the process, it throws an
+     * OAuth2AuthenticationException.
      *
      * @return PasswordPolicyResponseDto containing the password policy details
      * @throws OAuth2AuthenticationException if there is an error fetching the password policy
      */
     public PasswordPolicyResponseDto getPasswordPolicy() {
         LOGGER.debug("## getPasswordPolicy - START");
-        String uri = tenantProperties.getExternalUrls().get(TENANT_EXTERNAL_URLS_PASSWORD_POLICY_ENDPOINT);
-        PasswordPolicyResponseDto password = null;
+
         try {
-            password = webClient.method(HttpMethod.GET)
-                    .uri(uri)
-                    .accept(MediaType.APPLICATION_JSON)
-                    .retrieve()
-                    .bodyToMono(PasswordPolicyResponseDto.class)
-                    .block();
+            TenantProperties tenantProperties = getCurrentTenantProperties();
+            WebClient currentWebClient = getWebClientForCurrentTenant();
+
+            String uri = tenantProperties.getExternalUrls().get(TENANT_EXTERNAL_URLS_PASSWORD_POLICY_ENDPOINT);
+            PasswordPolicyResponseDto password = null;
+
+            password = currentWebClient.method(HttpMethod.GET).uri(uri)
+                    .header(TENANT_ID_HEADER, tenantProperties.getTenantId())
+                    .accept(MediaType.APPLICATION_JSON).retrieve()
+                    .bodyToMono(PasswordPolicyResponseDto.class).block();
             LOGGER.debug("Password policy response received");
+            return password;
         } catch (WebClientResponseException ex) {
             LOGGER.error("Web client error while fetching password policy", ex);
         } catch (Exception ex) {
             LOGGER.error("Error while fetching password policy", ex);
         }
         LOGGER.debug("## getPasswordPolicy - END");
-        return password;
+        return null;
     }
 
     /**
-     * Creates a federated user in the User Management Service.
-     * This method makes a POST request to create a new federated user.
+     * Creates a federated user in the User Management Service. This method makes a POST request to create a new
+     * federated user.
      *
      * @param userRequest The federated user details containing username and other required information
      * @return UserDetailsResponse containing the created user's details
@@ -424,10 +498,16 @@ public class UserManagementClient {
      */
     public UserDetailsResponse createFedratedUser(FederatedUserDto userRequest) {
         LOGGER.info("Creating federated user with username: {}", userRequest.getUserName());
-        String uri = tenantProperties.getExternalUrls().get(TENANT_EXTERNAL_URLS_CREATE_FEDRATED_USER);
+
         try {
-            UserDetailsResponse userDetailsResponse = webClient.method(HttpMethod.POST).uri(uri)
+            TenantProperties tenantProperties = getCurrentTenantProperties();
+            WebClient currentWebClient = getWebClientForCurrentTenant();
+
+            String uri = tenantProperties.getExternalUrls().get(TENANT_EXTERNAL_URLS_CREATE_FEDRATED_USER);
+
+            UserDetailsResponse userDetailsResponse = currentWebClient.method(HttpMethod.POST).uri(uri)
                     .header(IgniteOauth2CoreConstants.CORRELATION_ID, UUID.randomUUID().toString())
+                    .header(TENANT_ID_HEADER, tenantProperties.getTenantId())
                     .contentType(MediaType.APPLICATION_JSON).bodyValue(userRequest).retrieve()
                     .bodyToMono(UserDetailsResponse.class).block();
             LOGGER.info("Successfully created federated user: {}", userRequest.getUserName());
@@ -442,5 +522,38 @@ public class UserManagementClient {
             throw new OAuth2AuthenticationException(error);
         }
         return null;
+    }
+
+    /**
+     * Handles user fetch errors and creates appropriate OAuth2Error with metrics tracking.
+     *
+     * @param statusCode the HTTP status code from the error response
+     * @param errorMessage the error message from the user management service (can be null)
+     * @param tenantId the tenant ID for metrics tracking
+     * @return OAuth2Error with appropriate error code and description
+     */
+    private OAuth2Error handleUserFetchError(HttpStatusCode statusCode, String errorMessage, String tenantId) {
+        String errorCode;
+        String errorDesc;
+
+        if (errorMessage != null) {
+            if (HttpStatus.NOT_FOUND.isSameCodeAs(statusCode)) {
+                errorCode = CustomOauth2TokenGenErrorCodes.USER_NOT_FOUND.name();
+                errorDesc = errorMessage;
+                metricsService.incrementMetricsForTenant(tenantId, MetricType.FAILURE_LOGIN_USER_NOT_FOUND);
+            } else if (HttpStatus.FORBIDDEN.isSameCodeAs(statusCode)) {
+                errorCode = CustomOauth2TokenGenErrorCodes.USER_NOT_ACTIVE.name();
+                errorDesc = CustomOauth2TokenGenErrorCodes.USER_NOT_ACTIVE.getDescription();
+                metricsService.incrementMetricsForTenant(tenantId, MetricType.FAILURE_LOGIN_USER_BLOCKED);
+            } else {
+                errorCode = OAuth2ErrorCodes.SERVER_ERROR;
+                errorDesc = errorMessage;
+            }
+        } else {
+            errorCode = OAuth2ErrorCodes.SERVER_ERROR;
+            errorDesc = "Unable to validate " + OAuth2ParameterNames.USERNAME;
+        }
+
+        return new OAuth2Error(errorCode, errorDesc, null);
     }
 }

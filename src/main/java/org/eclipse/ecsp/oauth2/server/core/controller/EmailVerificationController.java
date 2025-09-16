@@ -18,11 +18,13 @@
 
 package org.eclipse.ecsp.oauth2.server.core.controller;
 
+import org.eclipse.ecsp.oauth2.server.core.utils.UiAttributeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.ModelAndView;
@@ -37,13 +39,23 @@ import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2C
  * It exposes the /emailVerification/verify endpoint for this purpose.
  */
 @Controller
-@RequestMapping("/emailVerification")
+@RequestMapping("/{tenantId}/emailVerification")
 public class EmailVerificationController {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EmailVerificationController.class);
+    private final UiAttributeUtils uiAttributeUtils;
 
     private static final String TRUE = "true";
     private static final String FALSE = "false";
+
+    /**
+     * Constructor for EmailVerificationController.
+     *
+     * @param uiAttributeUtils the utility for adding UI attributes to models
+     */
+    public EmailVerificationController(UiAttributeUtils uiAttributeUtils) {
+        this.uiAttributeUtils = uiAttributeUtils;
+    }
 
     /**
      * This method handles the GET request for the email verification operation.
@@ -59,7 +71,8 @@ public class EmailVerificationController {
      * @return A ModelAndView object that includes the view name and model attributes.
      */
     @GetMapping("/verify")
-    public ModelAndView verifyEmail(@RequestParam(SUCCESS) String verifyStatus, Model model) {
+    public ModelAndView verifyEmail(@PathVariable("tenantId") String tenantId,
+                                    @RequestParam(SUCCESS) String verifyStatus, Model model) {
         if (!ERROR_LITERAL.equalsIgnoreCase(verifyStatus) && !TRUE.equalsIgnoreCase(verifyStatus)
             && !FALSE.equalsIgnoreCase(verifyStatus)) {
             LOGGER.info("Reassigning verification status to error as invalid verification status provided");
@@ -68,6 +81,10 @@ public class EmailVerificationController {
         verifyStatus = verifyStatus.toLowerCase(Locale.ROOT);
         LOGGER.info("Email Verification is verified: {}", verifyStatus);
         model.addAttribute(SUCCESS, verifyStatus);
+        
+        // Add UI configuration attributes based on tenant properties
+        uiAttributeUtils.addUiAttributes(model, tenantId);
+        
         return new ModelAndView("/emailVerify/email-verification").addObject(model);
     }
 }

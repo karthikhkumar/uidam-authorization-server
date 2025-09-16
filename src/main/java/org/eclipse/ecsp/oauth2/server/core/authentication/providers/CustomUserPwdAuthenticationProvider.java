@@ -24,12 +24,14 @@ import org.eclipse.ecsp.oauth2.server.core.authentication.tokens.CustomUserPwdAu
 import org.eclipse.ecsp.oauth2.server.core.client.UserManagementClient;
 import org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
+import org.eclipse.ecsp.oauth2.server.core.metrics.AuthorizationMetricsService;
+import org.eclipse.ecsp.oauth2.server.core.metrics.MetricType;
 import org.eclipse.ecsp.oauth2.server.core.request.dto.UserEvent;
 import org.eclipse.ecsp.oauth2.server.core.response.UserDetailsResponse;
+import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
 import org.eclipse.ecsp.oauth2.server.core.utils.PasswordUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.Authentication;
@@ -57,14 +59,27 @@ public class CustomUserPwdAuthenticationProvider implements AuthenticationProvid
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CustomUserPwdAuthenticationProvider.class);
 
-    @Autowired
-    UserManagementClient userManagementClient;
-    
-    @Autowired 
-    TenantProperties tenantProperties;
+    private final UserManagementClient userManagementClient;
+    private final TenantConfigurationService tenantConfigurationService;
+    private final HttpServletRequest request;
+    private final AuthorizationMetricsService metricsService;
 
-    @Autowired
-    private HttpServletRequest request;
+    /**
+     * Constructor for CustomUserPwdAuthenticationProvider.
+     *
+     * @param userManagementClient the user management client
+     * @param tenantConfigurationService the tenant configuration service
+     * @param request the HTTP servlet request
+     */
+    public CustomUserPwdAuthenticationProvider(UserManagementClient userManagementClient,
+                                               TenantConfigurationService tenantConfigurationService,
+                                               HttpServletRequest request,
+                                               AuthorizationMetricsService metricsService) {
+        this.userManagementClient = userManagementClient;
+        this.tenantConfigurationService = tenantConfigurationService;
+        this.request = request;
+        this.metricsService = metricsService;
+    }
 
     /**
      * This method overrides the authenticate method from the AuthenticationProvider interface.
@@ -83,18 +98,24 @@ public class CustomUserPwdAuthenticationProvider implements AuthenticationProvid
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
         CustomUserPwdAuthenticationToken customUserPwdAuthenticationToken =
             (CustomUserPwdAuthenticationToken) authentication;
+        UserEvent userEvent = new UserEvent();
+        userEvent.setType(IgniteOauth2CoreConstants.USER_EVENT_LOGIN_ATTEMPT);
+        TenantProperties tenantProperties = tenantConfigurationService.getTenantProperties();
+        int maxAllowedLoginAttempt = tenantProperties.getUser().getMaxAllowedLoginAttempts();
+        String tenantId = tenantProperties.getTenantId();
         String username = customUserPwdAuthenticationToken.getPrincipal() + "";
         String password = customUserPwdAuthenticationToken.getCredentials() + "";
         String accountName = customUserPwdAuthenticationToken.getAccountName();
-        UserEvent userEvent = new UserEvent();
-        userEvent.setType(IgniteOauth2CoreConstants.USER_EVENT_LOGIN_ATTEMPT);
-        int maxAllowedLoginAttempt = tenantProperties.getUser().getMaxAllowedLoginAttempts();
         LOGGER.debug("Authenticating user details for username {}", username);
+        metricsService.incrementMetricsForTenant(tenantId, MetricType.TOTAL_LOGIN_ATTEMPTS);
         UserDetailsResponse userDetailsResponse = userManagementClient.getUserDetailsByUsername(username, accountName);
         String encryptedUserEnteredPassword = PasswordUtils.getSecurePassword(password,
             userDetailsResponse.getPasswordEncoder(), userDetailsResponse.getSalt());
         if (!encryptedUserEnteredPassword.equals(userDetailsResponse.getPassword())) {
             LOGGER.info("Password validation status: FAILED for username {}", username);
+            metricsService.incrementMetricsForTenant(tenantId,
+                                                    MetricType.FAILURE_LOGIN_WRONG_PASSWORD,
+                                                    MetricType.FAILURE_LOGIN_ATTEMPTS);
             addUserEvent(userEvent, IgniteOauth2CoreConstants.USER_EVENT_LOGIN_FAILURE,
                 IgniteOauth2CoreConstants.USER_EVENT_LOGIN_FAILURE_BAD_CREDENTIALS_MSG,
                 userDetailsResponse.getId());
@@ -104,11 +125,15 @@ public class CustomUserPwdAuthenticationProvider implements AuthenticationProvid
                 userDetailsResponse.getCaptcha().get(USER_ENFORCE_AFTER_NO_OF_FAILURES));
             if (loginAttempt >= maxAllowedLoginAttempt) {
                 LOGGER.info("{} max allowed login attempt used ", maxAllowedLoginAttempt);
+                metricsService.incrementMetricsForTenant(tenantId,
+                                                        MetricType.FAILURE_LOGIN_USER_BLOCKED,
+                                                        MetricType.FAILURE_LOGIN_ATTEMPTS);
                 throw new BadCredentialsException(USER_LOCKED_ERROR);
             }
             throw new BadCredentialsException("Bad credentials");
         }
         LOGGER.info("Password validation status: SUCCESS for username {}", username);
+        metricsService.incrementMetricsForTenant(tenantId, MetricType.SUCCESS_LOGIN_ATTEMPTS);
         addUserEvent(userEvent, IgniteOauth2CoreConstants.USER_EVENT_LOGIN_SUCCESS,
             IgniteOauth2CoreConstants.USER_EVENT_LOGIN_SUCCESS_MSG, userDetailsResponse.getId());
         List<GrantedAuthority> grantedAuthorities = userDetailsResponse.getScopes().stream()

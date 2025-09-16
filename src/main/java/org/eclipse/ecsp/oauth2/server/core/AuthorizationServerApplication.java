@@ -18,14 +18,14 @@
 
 package org.eclipse.ecsp.oauth2.server.core;
 
-import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
+import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.MultiTenantProperties;
 import org.eclipse.ecsp.oauth2.server.core.interceptor.CorrelationIdInterceptor;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.liquibase.LiquibaseAutoConfiguration;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.PropertySource;
 import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
@@ -33,13 +33,20 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
 /**
  * The AuthorizationServerApplication is the main class for the microservice.
+ * 
+ * <p>Note: LiquibaseAutoConfiguration is excluded because this application implements
+ * custom multi-tenant database schema management through 
+ * {@link org.eclipse.ecsp.oauth2.server.core.config.LiquibaseConfig}.
+ * The custom configuration handles schema creation and migration per tenant, which is incompatible 
+ * with Spring Boot's default Liquibase auto-configuration that assumes a single database schema.
+ * This exclusion ensures that database schema management is properly handled for each tenant
+ * in the multi-tenant architecture without conflicts from the default auto-configuration.
  */
 @ComponentScan(basePackages = {"org.eclipse.ecsp"})
-@EnableConfigurationProperties({TenantProperties.class})
-@PropertySource("classpath:external-idp-application.properties")
+@EnableConfigurationProperties(MultiTenantProperties.class)
 @EnableScheduling
 @EnableRetry
-@SpringBootApplication(scanBasePackages = {"org.eclipse.ecsp"})
+@SpringBootApplication(scanBasePackages = {"org.eclipse.ecsp"}, exclude = {LiquibaseAutoConfiguration.class})
 public class AuthorizationServerApplication {
 
     protected AuthorizationServerApplication() {
@@ -56,18 +63,20 @@ public class AuthorizationServerApplication {
     }
 
     /**
+    /**
      * This method creates an instance of WebMvcConfigurer.
      * The WebMvcConfigurer interface has methods for customizing the Java-based configurations for Spring MVC.
-     * In this method, an anonymous class is created that overrides the addInterceptors method to add a custom
-     * interceptor, CorrelationIdInterceptor.
+     * In this method, an anonymous class is created that overrides the addInterceptors method to add
+     * CorrelationIdInterceptor. Tenant resolution is handled by TenantResolutionFilter at the filter level.
      *
-     * @return a WebMvcConfigurer that adds the CorrelationIdInterceptor to the InterceptorRegistry.
+     * @return a WebMvcConfigurer that adds the correlation ID interceptor to the InterceptorRegistry.
      */
     @Bean
     public WebMvcConfigurer adapter() {
         return new WebMvcConfigurer() {
             @Override
             public void addInterceptors(InterceptorRegistry registry) {
+                // Add CorrelationIdInterceptor for request tracing
                 registry.addInterceptor(new CorrelationIdInterceptor());
             }
 

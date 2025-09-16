@@ -18,16 +18,17 @@
 
 package org.eclipse.ecsp.oauth2.server.core.controller;
 
-
+import jakarta.servlet.http.HttpServletRequest;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
 import org.eclipse.ecsp.oauth2.server.core.service.LoginService;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.eclipse.ecsp.oauth2.server.core.utils.UiAttributeUtils;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.UIDAM;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.ACCOUNT_FIELD_ENABLED;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.CAPTCHA_FIELD_ENABLED;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2CoreConstants.CAPTCHA_SITE;
@@ -46,32 +47,43 @@ import static org.eclipse.ecsp.oauth2.server.core.common.constants.IgniteOauth2C
 @Controller
 public class LoginController {
 
-    private TenantProperties tenantProperties;
-
-    @Autowired
-    LoginService loginService;
+    private final TenantConfigurationService tenantConfigurationService;
+    private final LoginService loginService;
+    private final UiAttributeUtils uiAttributeUtils;
 
     /**
      * The constructor for the LoginController class.
-     * It initializes the tenant properties using the provided TenantConfigurationService.
+     * It initializes the required services for multi-tenant configuration and login functionality.
      *
      * @param tenantConfigurationService The service that provides the tenant configuration.
+     * @param loginService The service that handles login operations.
+     * @param uiAttributeUtils The utility for adding UI attributes.
      */
-    @Autowired
-    public LoginController(TenantConfigurationService tenantConfigurationService) {
-        tenantProperties = tenantConfigurationService.getTenantProperties(UIDAM);
+    public LoginController(TenantConfigurationService tenantConfigurationService, LoginService loginService,
+                          UiAttributeUtils uiAttributeUtils) {
+        this.tenantConfigurationService = tenantConfigurationService;
+        this.loginService = loginService;
+        this.uiAttributeUtils = uiAttributeUtils;
     }
 
     /**
      * The endpoint for the UIDAM Login.
      * It adds additional login form attributes like account name, captcha, etc. to the model.
-     * It returns the login page.
+     * It returns the login page. Tenant properties are resolved dynamically based on current tenant context.
      *
      * @param model The Model object that is used for adding attributes.
      * @return The name of the login page.
      */
-    @GetMapping("/login")
-    public String login(Model model) {
+    @GetMapping("/{tenantId}/login")
+    public String login(@PathVariable("tenantId") String tenantId,
+                        Model model, HttpServletRequest request,
+            @RequestParam(name = "client_id", required = false) String clientId,
+            @RequestParam(required = false) String scope,
+            @RequestParam(name = "redirect_uri", required = false) String redirectUri,
+            @RequestParam(name = "response_type", required = false) String responseType,
+            @RequestParam(required = false) String state) {
+        // Get tenant properties dynamically based on current tenant context
+        TenantProperties tenantProperties = tenantConfigurationService.getTenantProperties();
         model.addAttribute(ACCOUNT_FIELD_ENABLED, tenantProperties.getAccount().getAccountFieldEnabled());
         boolean isCaptchaEnabledForUserInterface = loginService.isCaptchaEnabledForUserInterface();
         model.addAttribute(CAPTCHA_FIELD_ENABLED, isCaptchaEnabledForUserInterface);
@@ -88,16 +100,42 @@ public class LoginController {
                 model.addAttribute(IS_IDP_AUTO_REDIRECTION_ENABLED, loginService.isAutoRedirectionEnabled());
             }
         }
+        // Add OAuth2 parameters to model for use in login.html
+        if (clientId != null) {
+            model.addAttribute("client_id", clientId);
+        }
+        if (scope != null) {
+            model.addAttribute("scope", scope);
+        }
+        if (redirectUri != null) {
+            model.addAttribute("redirect_uri", redirectUri);
+        }
+        if (responseType != null) {
+            model.addAttribute("response_type", responseType);
+        }
+        if (state != null) {
+            model.addAttribute("state", state);
+        }
+        if (tenantId != null) {
+            model.addAttribute("issuer", tenantId);
+        }
+
+        // Add UI configuration attributes
+        uiAttributeUtils.addUiAttributes(model, tenantId);
+
         return "login";
     }
 
     /**
      * The endpoint for the error page.
      *
+     * @param model The Model object that is used for adding attributes.
      * @return The name of the error page.
      */
     @GetMapping("/error")
-    public String error() {
+    public String error(Model model) {
+        // Add default UI configuration for error page since no tenant context
+        uiAttributeUtils.addDefaultUiAttributes(model);
         return "error";
     }
 }

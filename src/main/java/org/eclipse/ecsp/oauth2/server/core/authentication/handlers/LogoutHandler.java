@@ -23,6 +23,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.eclipse.ecsp.oauth2.server.core.service.AuthorizationService;
 import org.eclipse.ecsp.oauth2.server.core.service.ClientRegistrationManager;
 import org.eclipse.ecsp.oauth2.server.core.service.DatabaseSecurityContextRepository;
+import org.eclipse.ecsp.oauth2.server.core.util.SessionTenantResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -58,9 +59,9 @@ import java.util.stream.Collectors;
 @Component
 public class LogoutHandler {
 
-    private static final String OAUTH2_LOGOUT_SUCCESS = "/oauth2/logout/success";
+    private static final String OAUTH2_LOGOUT_SUCCESS = "/%s/oauth2/logout/success";
 
-    private static final String OAUTH2_LOGOUT_ERROR_ERROR = "/oauth2/logout/error?error=%s";
+    private static final String OAUTH2_LOGOUT_ERROR_ERROR = "/%s/oauth2/logout/error?error=%s";
 
     private static final int INTEGER_SEVEN = 7;
 
@@ -270,10 +271,11 @@ public class LogoutHandler {
         } else {
             // No redirect URL configured - redirect to internal pages
             if (error != null) {
-                redirectUri = String.format(OAUTH2_LOGOUT_ERROR_ERROR, error.getErrorCode());
+                redirectUri = String.format(OAUTH2_LOGOUT_ERROR_ERROR, SessionTenantResolver.getCurrentTenant(),
+                        error.getErrorCode());
                 LOGGER.info("Redirecting to logout error page: {}", redirectUri);
             } else {
-                redirectUri = OAUTH2_LOGOUT_SUCCESS;
+                redirectUri = String.format(OAUTH2_LOGOUT_SUCCESS, SessionTenantResolver.getCurrentTenant());
                 LOGGER.info("Redirecting to logout success page: {}", redirectUri);
             }
         }

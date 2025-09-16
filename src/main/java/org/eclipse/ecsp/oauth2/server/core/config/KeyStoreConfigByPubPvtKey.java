@@ -18,20 +18,14 @@
 
 package org.eclipse.ecsp.oauth2.server.core.config;
 
-
-
 import com.nimbusds.jose.jwk.RSAKey;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
 import org.eclipse.ecsp.oauth2.server.core.exception.KeyGenerationException;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.Resource;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -42,13 +36,6 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.BEGIN_PUBLIC_KEY;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.END_PUBLIC_KEY;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_JWT_KEY_ID;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_JWT_PRIVATE_KEY;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_JWT_PUBLIC_KEY;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.UIDAM;
-
 /**
  * The KeyStoreConfigByPubPvtKey class is a configuration class that uses a public/private key pair for generating RSA
  * keys.
@@ -57,35 +44,64 @@ import static org.eclipse.ecsp.oauth2.server.core.common.constants.Authorization
 public class KeyStoreConfigByPubPvtKey {
     private static final Logger LOGGER = LoggerFactory.getLogger(KeyStoreConfigByPubPvtKey.class);
 
-    private TenantProperties tenantProperties;
+    private final TenantConfigurationService tenantConfigurationService;
 
     /**
-     * Constructor for the KeyStoreConfigByPubPvtKey class.
-     * It initializes the tenant properties using the provided TenantConfigurationService.
+     * Constructor for KeyStoreConfigByPubPvtKey.
+     * Uses TenantConfigurationService for tenant-aware operations during request processing.
      *
-     * @param tenantConfigurationService the service to retrieve tenant properties
+     * @param tenantConfigurationService Service for tenant-aware configuration operations
      */
-    @Autowired
     public KeyStoreConfigByPubPvtKey(TenantConfigurationService tenantConfigurationService) {
-        tenantProperties = tenantConfigurationService.getTenantProperties(UIDAM);
+        this.tenantConfigurationService = tenantConfigurationService;
+        LOGGER.info("Initialized KeyStoreConfigByPubPvtKey with TenantConfigurationService");
     }
 
     /**
-     * This method generates a public RSA key from a JWT public key file.
-     * It reads the JWT public key file specified in the tenant properties,
-     * decodes the Base64 encoded key, and generates an RSAPublicKey instance.
+     * Generate RSA Key for current tenant by reading PEM files.
+     * This method is called during request processing when tenant context is available.
      *
-     * @return RSAPublicKey instance generated from the JWT public key file
-     * @throws KeyGenerationException if there is an error while reading the key file or generating the public key
+     * @return RSAKey for current tenant (from PEM files)
      */
-    private RSAPublicKey generatePublicKey() {
+    public RSAKey generateRsaKey() {
+        LOGGER.debug("Generating RSA Key for current tenant using PEM files");
+        
+        try {
+            // Get tenant properties for current tenant context
+            TenantProperties tenantProperties = tenantConfigurationService.getTenantProperties();
+            
+            // Generate public and private keys from PEM files
+            RSAPublicKey publicKey = generatePublicKey(tenantProperties);
+            RSAPrivateKey privateKey = generatePrivateKey(tenantProperties);
+            
+            // Get key ID from tenant properties
+            String keyId = tenantProperties.getCert().get("tenant-jwt-key-id");
+            
+            return new RSAKey.Builder(publicKey)
+                    .privateKey(privateKey)
+                    .keyID(keyId != null ? keyId : "default-key-id")
+                    .build();
+            
+        } catch (Exception e) {
+            LOGGER.error("Failed to generate RSA key for current tenant: {}", e.getMessage(), e);
+            throw new KeyGenerationException(e);
+        }
+    }
+
+    /**
+     * Generate RSA Public Key from PEM file for tenant.
+     *
+     * @param tenantProperties Tenant properties containing certificate configuration
+     * @return RSAPublicKey generated from PEM file
+     */
+    private RSAPublicKey generatePublicKey(TenantProperties tenantProperties) {
         LOGGER.debug("## generatePublicKey - START");
         RSAPublicKey rsaPublicKey;
         try {
-            String key = getFile(tenantProperties.getCert().get(TENANT_JWT_PUBLIC_KEY));
-            String publicKeyPem = key.replace(BEGIN_PUBLIC_KEY, "")
+            String key = getFile(tenantProperties.getCert().get("tenant-jwt-public-key"));
+            String publicKeyPem = key.replace("-----BEGIN PUBLIC KEY-----", "")
                     .replaceAll(System.lineSeparator(), "")
-                    .replace(END_PUBLIC_KEY, "");
+                    .replace("-----END PUBLIC KEY-----", "");
             byte[] decoded = Base64.getDecoder().decode(publicKeyPem);
             KeyFactory keyFactory = KeyFactory.getInstance("RSA");
             X509EncodedKeySpec keySpec = new X509EncodedKeySpec(decoded);
@@ -98,18 +114,16 @@ public class KeyStoreConfigByPubPvtKey {
     }
 
     /**
-     * This method generates a private RSA key from a JWT private key file.
-     * It reads the JWT private key file specified in the tenant properties,
-     * decodes the Base64 encoded key, and generates an RSAPrivateKey instance.
+     * Generate RSA Private Key from PEM file for tenant.
      *
-     * @return RSAPrivateKey instance generated from the JWT private key file
-     * @throws KeyGenerationException if there is an error while reading the key file or generating the private key
+     * @param tenantProperties Tenant properties containing certificate configuration
+     * @return RSAPrivateKey generated from PEM file
      */
-    private RSAPrivateKey generatePrivateKey() {
+    private RSAPrivateKey generatePrivateKey(TenantProperties tenantProperties) {
         LOGGER.debug("## generatePrivateKey - START");
         RSAPrivateKey rsaPrivateKey;
         try {
-            String key = getFile(tenantProperties.getCert().get(TENANT_JWT_PRIVATE_KEY));
+            String key = getFile(tenantProperties.getCert().get("tenant-jwt-private-key"));
             String privateKeyPem = key.replace("-----BEGIN PRIVATE KEY-----", "")
                     .replaceAll(System.lineSeparator(), "")
                     .replace("-----END PRIVATE KEY-----", "");
@@ -125,47 +139,24 @@ public class KeyStoreConfigByPubPvtKey {
     }
 
     /**
-     * This method generates an RSA key using the public and private keys.
-     * It first generates a public key and a private key from JWT key files specified in the tenant properties.
-     * Then, it uses these keys to generate an RSA key.
+     * Read file content from classpath.
      *
-     * @return RSAKey instance generated from the public and private keys
-     * @throws KeyGenerationException if there is an error while generating the public key, private key, or the RSA key
-     */
-    @Bean
-    @ConditionalOnProperty(name = "ignite.oauth2.jks-enabled", havingValue = "false")
-    public RSAKey generateRsaKey() throws KeyGenerationException {
-        LOGGER.debug("## generateRsaKey ");
-        return new RSAKey.Builder(generatePublicKey())
-            .privateKey(generatePrivateKey())
-            .keyID(tenantProperties.getCert().get(TENANT_JWT_KEY_ID))
-            .build();
-    }
-
-    /**
-     * This method retrieves the content of a file as a string.
-     * It reads the file with the given name from the classpath,
-     * and returns its content as a string.
-     *
-     * @param fileName the name of the file to read
-     * @return the content of the file as a string
-     * @throws KeyGenerationException if there is an error while reading the file
+     * @param fileName Name of file to read
+     * @return File content as string
      */
     private String getFile(String fileName) {
-        LOGGER.debug("## getFile - START");
-        Resource resource = new ClassPathResource(fileName);
-        StringBuilder sb = new StringBuilder();
-        try (InputStreamReader keyReader = new InputStreamReader(resource.getInputStream());
-            BufferedReader reader = new BufferedReader(keyReader)) {
-            String str;
-            while ((str = reader.readLine()) != null) {
-                sb.append(str);
+        try {
+            ClassPathResource resource = new ClassPathResource(fileName);
+            StringBuilder content = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(resource.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    content.append(line).append(System.lineSeparator());
+                }
             }
+            return content.toString();
         } catch (Exception exception) {
             throw new KeyGenerationException(exception);
         }
-        LOGGER.debug("## getFile - END");
-        return sb.toString();
     }
-
 }

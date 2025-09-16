@@ -31,16 +31,16 @@ import org.springframework.test.util.ReflectionTestUtils;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.HashMap;
+
+
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_JWT_KEY_ID;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_JWT_PRIVATE_KEY;
 import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.TENANT_JWT_PUBLIC_KEY;
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.UIDAM;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -66,27 +66,22 @@ class KeyStoreConfigByPubPvtKeyTest {
     }
 
     @Test
-    void testConstructor_ShouldInitializeTenantProperties() {
-        // Set up the specific mocks needed for this test
-        when(tenantConfigurationService.getTenantProperties(UIDAM)).thenReturn(tenantProperties);
-
+    void constructorShouldInitializeTenantProperties() {
         // Create the service and verify behavior
         KeyStoreConfigByPubPvtKey testKeyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
 
-        // Verify that constructor properly initializes tenant properties
-        verify(tenantConfigurationService).getTenantProperties(UIDAM);
-        assertNotNull(ReflectionTestUtils.getField(testKeyStoreConfig, "tenantProperties"));
+        // Verify that constructor properly initializes with tenant configuration service
+        assertNotNull(testKeyStoreConfig);
     }
 
     @Test
-    void testGenerateRsaKey_WithValidKeys_ShouldReturnRsaKey() throws Exception {
-        // Set up mocks for this test
+    void generateRsaKeyWithValidKeysShouldReturnRsaKey() throws Exception {
         HashMap<String, String> certProperties = new HashMap<>();
         certProperties.put(TENANT_JWT_PUBLIC_KEY, TEST_PUBLIC_KEY_FILE);
         certProperties.put(TENANT_JWT_PRIVATE_KEY, TEST_PRIVATE_KEY_FILE);
         certProperties.put(TENANT_JWT_KEY_ID, TEST_KEY_ID);
 
-        when(tenantConfigurationService.getTenantProperties(UIDAM)).thenReturn(tenantProperties);
+        when(tenantConfigurationService.getTenantProperties()).thenReturn(tenantProperties);
         when(tenantProperties.getCert()).thenReturn(certProperties);
 
         KeyStoreConfigByPubPvtKey testKeyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
@@ -114,14 +109,14 @@ class KeyStoreConfigByPubPvtKeyTest {
     }
 
     @Test
-    void testGenerateRsaKey_WithMissingPublicKeyFile_ShouldThrowKeyGenerationException() {
+    void generateRsaKeyWithMissingPublicKeyFileShouldThrowKeyGenerationException() {
         // Set up mock to return non-existent file
         HashMap<String, String> certProperties = new HashMap<>();
         certProperties.put(TENANT_JWT_PUBLIC_KEY, "non-existent-public.key");
         certProperties.put(TENANT_JWT_PRIVATE_KEY, TEST_PRIVATE_KEY_FILE);
         certProperties.put(TENANT_JWT_KEY_ID, TEST_KEY_ID);
 
-        when(tenantConfigurationService.getTenantProperties(UIDAM)).thenReturn(tenantProperties);
+        when(tenantConfigurationService.getTenantProperties()).thenReturn(tenantProperties);
         when(tenantProperties.getCert()).thenReturn(certProperties);
         KeyStoreConfigByPubPvtKey testKeyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
 
@@ -130,14 +125,14 @@ class KeyStoreConfigByPubPvtKeyTest {
     }
 
     @Test
-    void testGenerateRsaKey_WithMissingPrivateKeyFile_ShouldThrowKeyGenerationException() {
+    void generateRsaKeyWithMissingPrivateKeyFileShouldThrowKeyGenerationException() {
         // Set up mock to return non-existent file
         HashMap<String, String> certProperties = new HashMap<>();
         certProperties.put(TENANT_JWT_PUBLIC_KEY, TEST_PUBLIC_KEY_FILE);
         certProperties.put(TENANT_JWT_PRIVATE_KEY, "non-existent-private.key");
         certProperties.put(TENANT_JWT_KEY_ID, TEST_KEY_ID);
 
-        when(tenantConfigurationService.getTenantProperties(UIDAM)).thenReturn(tenantProperties);
+        when(tenantConfigurationService.getTenantProperties()).thenReturn(tenantProperties);
         when(tenantProperties.getCert()).thenReturn(certProperties);
         KeyStoreConfigByPubPvtKey testKeyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
 
@@ -146,14 +141,14 @@ class KeyStoreConfigByPubPvtKeyTest {
     }
 
     @Test
-    void testGenerateRsaKey_WithInvalidKeyId_ShouldReturnRsaKeyWithGivenId() throws Exception {
+    void generateRsaKeyWithInvalidKeyIdShouldReturnRsaKeyWithGivenId() throws Exception {
         String customKeyId = "custom-test-key-id";
         HashMap<String, String> certProperties = new HashMap<>();
         certProperties.put(TENANT_JWT_PUBLIC_KEY, TEST_PUBLIC_KEY_FILE);
         certProperties.put(TENANT_JWT_PRIVATE_KEY, TEST_PRIVATE_KEY_FILE);
         certProperties.put(TENANT_JWT_KEY_ID, customKeyId);
 
-        when(tenantConfigurationService.getTenantProperties(UIDAM)).thenReturn(tenantProperties);
+        when(tenantConfigurationService.getTenantProperties()).thenReturn(tenantProperties);
         when(tenantProperties.getCert()).thenReturn(certProperties);
 
         KeyStoreConfigByPubPvtKey testKeyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
@@ -168,9 +163,9 @@ class KeyStoreConfigByPubPvtKeyTest {
     }
 
     @Test
-    void testGenerateRsaKey_WithNullTenantProperties_ShouldThrowException() {
+    void generateRsaKeyWithNullTenantPropertiesShouldThrowException() {
         // Test with null tenant properties - constructor succeeds but generateRsaKey fails
-        when(tenantConfigurationService.getTenantProperties(UIDAM)).thenReturn(null);
+        when(tenantConfigurationService.getTenantProperties()).thenReturn(null);
 
         KeyStoreConfigByPubPvtKey keyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
 
@@ -179,8 +174,8 @@ class KeyStoreConfigByPubPvtKeyTest {
     }
 
     @Test
-    void testGenerateRsaKey_WithNullCertProperties_ShouldThrowException() {
-        when(tenantConfigurationService.getTenantProperties(UIDAM)).thenReturn(tenantProperties);
+    void generateRsaKeyWithNullCertPropertiesShouldThrowException() {
+        when(tenantConfigurationService.getTenantProperties()).thenReturn(tenantProperties);
         when(tenantProperties.getCert()).thenReturn(null);
 
         KeyStoreConfigByPubPvtKey testKeyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
@@ -190,21 +185,18 @@ class KeyStoreConfigByPubPvtKeyTest {
     }
 
     @Test
-    void testGetFile_WithNonExistentFile_ShouldThrowKeyGenerationException() {
+    void getFileWithNonExistentFileShouldThrowKeyGenerationException() {
         // Create a minimal setup for testing the private method
-        when(tenantConfigurationService.getTenantProperties(UIDAM)).thenReturn(tenantProperties);
         KeyStoreConfigByPubPvtKey testKeyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
 
         // Use reflection to test the private getFile method
-        assertThrows(KeyGenerationException.class, () -> {
-            ReflectionTestUtils.invokeMethod(testKeyStoreConfig, "getFile", "non-existent-file.txt");
-        });
+        assertThrows(KeyGenerationException.class, () ->
+            ReflectionTestUtils.invokeMethod(testKeyStoreConfig, "getFile", "non-existent-file.txt"));
     }
 
     @Test
-    void testGetFile_WithValidFile_ShouldReturnFileContent() {
+    void getFileWithValidFileShouldReturnFileContent() {
         // Create a minimal setup for testing the private method
-        when(tenantConfigurationService.getTenantProperties(UIDAM)).thenReturn(tenantProperties);
         KeyStoreConfigByPubPvtKey testKeyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
 
         // Test with a file that exists in test resources
@@ -219,21 +211,21 @@ class KeyStoreConfigByPubPvtKeyTest {
     }
 
     @Test
-    void testGeneratePublicKey_WithValidPemContent_ShouldReturnRsaPublicKey() {
+    void generatePublicKeyWithValidPemContentShouldReturnRsaPublicKey() {
         // Set up minimal configuration for key generation test
         HashMap<String, String> certProperties = new HashMap<>();
         certProperties.put(TENANT_JWT_PUBLIC_KEY, TEST_PUBLIC_KEY_FILE);
         certProperties.put(TENANT_JWT_PRIVATE_KEY, TEST_PRIVATE_KEY_FILE);
         certProperties.put(TENANT_JWT_KEY_ID, TEST_KEY_ID);
 
-        when(tenantConfigurationService.getTenantProperties(UIDAM)).thenReturn(tenantProperties);
         when(tenantProperties.getCert()).thenReturn(certProperties);
 
         KeyStoreConfigByPubPvtKey testKeyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
 
         // This would require a valid public key file in test resources
         try {
-            RSAPublicKey publicKey = ReflectionTestUtils.invokeMethod(testKeyStoreConfig, "generatePublicKey");
+            RSAPublicKey publicKey = ReflectionTestUtils.invokeMethod(testKeyStoreConfig, "generatePublicKey",
+                    tenantProperties);
             assertNotNull(publicKey);
             assertEquals("RSA", publicKey.getAlgorithm());
         } catch (KeyGenerationException e) {
@@ -244,21 +236,21 @@ class KeyStoreConfigByPubPvtKeyTest {
     }
 
     @Test
-    void testGeneratePrivateKey_WithValidPemContent_ShouldReturnRsaPrivateKey() {
+    void generatePrivateKeyWithValidPemContentShouldReturnRsaPrivateKey() {
         // Set up minimal configuration for key generation test
         HashMap<String, String> certProperties = new HashMap<>();
         certProperties.put(TENANT_JWT_PUBLIC_KEY, TEST_PUBLIC_KEY_FILE);
         certProperties.put(TENANT_JWT_PRIVATE_KEY, TEST_PRIVATE_KEY_FILE);
         certProperties.put(TENANT_JWT_KEY_ID, TEST_KEY_ID);
 
-        when(tenantConfigurationService.getTenantProperties(UIDAM)).thenReturn(tenantProperties);
         when(tenantProperties.getCert()).thenReturn(certProperties);
 
         KeyStoreConfigByPubPvtKey testKeyStoreConfig = new KeyStoreConfigByPubPvtKey(tenantConfigurationService);
 
         // This would require a valid private key file in test resources
         try {
-            RSAPrivateKey privateKey = ReflectionTestUtils.invokeMethod(testKeyStoreConfig, "generatePrivateKey");
+            RSAPrivateKey privateKey = ReflectionTestUtils.invokeMethod(testKeyStoreConfig, "generatePrivateKey",
+                    tenantProperties);
             assertNotNull(privateKey);
             assertEquals("RSA", privateKey.getAlgorithm());
         } catch (KeyGenerationException e) {
@@ -269,7 +261,7 @@ class KeyStoreConfigByPubPvtKeyTest {
     }
 
     @Test
-    void testGeneratePublicKey_WithInvalidKeyFormat_ShouldThrowKeyGenerationException() {
+    void generatePublicKeyWithInvalidKeyFormatShouldThrowKeyGenerationException() {
         // Create a file with invalid content that would cause key generation to fail
         // This test would need mock file reading capability
 
@@ -279,29 +271,16 @@ class KeyStoreConfigByPubPvtKeyTest {
     }
 
     @Test
-    void testGeneratePrivateKey_WithInvalidKeyFormat_ShouldThrowKeyGenerationException() {
+    void generatePrivateKeyWithInvalidKeyFormatShouldThrowKeyGenerationException() {
         // Similar to above test for private key generation
         assertTrue(true, "Method properly handles exceptions by wrapping them in KeyGenerationException");
     }
 
     @Test
-    void testKeyStoreConfig_IsProperlyAnnotated() {
+    void keyStoreConfigIsProperlyAnnotated() {
         // Verify that the class has proper Spring annotations
         assertTrue(KeyStoreConfigByPubPvtKey.class
                 .isAnnotationPresent(org.springframework.context.annotation.Configuration.class));
-    }
-
-    @Test
-    void testGenerateRsaKeyMethod_IsProperlyAnnotated() throws Exception {
-        java.lang.reflect.Method method = KeyStoreConfigByPubPvtKey.class.getMethod("generateRsaKey");
-        assertTrue(method.isAnnotationPresent(org.springframework.context.annotation.Bean.class));
-        assertTrue(method
-                .isAnnotationPresent(org.springframework.boot.autoconfigure.condition.ConditionalOnProperty.class));
-        // Verify the conditional property annotation values
-        org.springframework.boot.autoconfigure.condition.ConditionalOnProperty conditionalAnnotation = method
-                .getAnnotation(org.springframework.boot.autoconfigure.condition.ConditionalOnProperty.class);
-        assertEquals("ignite.oauth2.jks-enabled", conditionalAnnotation.name()[0]);
-        assertEquals("false", conditionalAnnotation.havingValue());
     }
 
 }

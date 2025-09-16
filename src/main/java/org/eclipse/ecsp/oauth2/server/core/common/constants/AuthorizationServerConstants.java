@@ -29,7 +29,7 @@ public final class AuthorizationServerConstants {
 
     }
 
-    public static final String UIDAM = "uidam";
+    public static final String ECSP = "ecsp";
     public static final String TENANT_CONTACT_NAME = "contact-name";
     public static final String TENANT_PHONE_NUMBER = "phone-number";
     public static final String TENANT_EMAIL = "email";
@@ -48,6 +48,7 @@ public final class AuthorizationServerConstants {
     public static final String TENANT_EXTERNAL_URLS_PASSWORD_POLICY_ENDPOINT = "password-policy-endpoint";
 
     public static final String TENANT_KEYSTORE_FILENAME = "key-store-filename";
+    public static final String TENANT_KEYSTORE_JKS_ENCODED_CONTENT = "key-store-jks-encoded-content";
     public static final String TENANT_KEYSTORE_PASS = "key-store-password";
     public static final String TENANT_KEYSTORE_ALIAS = "key-alias";
     public static final String TENANT_KEYSTORE_TYPE = "key-type";
@@ -96,4 +97,8 @@ public final class AuthorizationServerConstants {
     public static final String END_PUBLIC_KEY = "-----END PUBLIC KEY-----";
     public static final String SCOPE = "scope";
     public static final String CLIENT_ID = "client_id";
+
+    // Metrics
+    public static final String TENANT_ID_TAG = "tenant_id";
+
 }

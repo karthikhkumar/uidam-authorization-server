@@ -24,17 +24,24 @@ import org.eclipse.ecsp.oauth2.server.core.cache.ClientCacheDetails;
 import org.eclipse.ecsp.oauth2.server.core.client.AuthManagementClient;
 import org.eclipse.ecsp.oauth2.server.core.client.UserManagementClient;
 import org.eclipse.ecsp.oauth2.server.core.common.CustomOauth2TokenGenErrorCodes;
+import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.AccountProperties;
+import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.ClientProperties;
+import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.ExternalIdpRegisteredClient;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
-import org.eclipse.ecsp.oauth2.server.core.request.dto.ClaimsToUserMapper;
+import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.UserProperties;
+import org.eclipse.ecsp.oauth2.server.core.metrics.AuthorizationMetricsService;
 import org.eclipse.ecsp.oauth2.server.core.request.dto.FederatedUserDto;
+import org.eclipse.ecsp.oauth2.server.core.response.UserDetailsResponse;
 import org.eclipse.ecsp.oauth2.server.core.service.ClaimMappingService;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
 import org.eclipse.ecsp.oauth2.server.core.test.TestOauth2Authorizations;
 import org.eclipse.ecsp.oauth2.server.core.test.TestRegisteredClients;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.boot.test.context.SpringBootTest;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
@@ -51,12 +58,10 @@ import org.springframework.security.oauth2.server.authorization.authentication.O
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.token.JwtEncodingContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenCustomizer;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import static org.eclipse.ecsp.oauth2.server.core.test.TestCommonStaticData.getUser;
 import static org.eclipse.ecsp.oauth2.server.core.test.TestCommonStaticData.getUserWithEmptyScope;
@@ -79,33 +84,36 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 
 /**
  * This class tests the functionality of the ClaimsConfigManager.
  */
-@SpringBootTest
-@ContextConfiguration(classes = { ClaimsConfigManager.class, TenantConfigurationService.class,
-  ClaimMappingService.class,
-  ClaimsToUserMapper.class })
-@EnableConfigurationProperties(value = TenantProperties.class)
-@TestPropertySource("classpath:application-test.properties")
-@TestPropertySource("classpath:external-idp-application.properties")
+@ExtendWith(MockitoExtension.class)
 class ClaimsConfigManagerTest {
 
-    @Autowired
-    OAuth2TokenCustomizer<JwtEncodingContext> jwtCustomizer;
+    @Mock
+    private TenantConfigurationService tenantConfigurationService;
 
-    @MockitoBean
-    CacheClientUtils cacheClientUtils;
+    @Mock
+    private CacheClientUtils cacheClientUtils;
 
-    @MockitoBean
-    UserManagementClient userManagementClient;
-    
-    @MockitoBean
-    AuthManagementClient authManagementClient;
+    @Mock
+    private UserManagementClient userManagementClient;
 
-    @MockitoBean
-    ClaimMappingService claimMappingService;
+    @Mock
+    private AuthManagementClient authManagementClient;
+
+    @Mock
+    private ClaimMappingService claimMappingService;
+
+    @Mock
+    private AuthorizationMetricsService authorizationMetricsService;
+
+    @InjectMocks
+    private ClaimsConfigManager claimsConfigManager;
+
+    private OAuth2TokenCustomizer<JwtEncodingContext> jwtCustomizer;
 
     /**
      * This test method tests the scenario where the token customization for
@@ -113,6 +121,9 @@ class ClaimsConfigManagerTest {
      */
     @Test
     void jwtTokenCustomizerForAuthCodeGrantAccessTokenType() {
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+        
         ClientCacheDetails clientCacheDetails = new ClientCacheDetails();
         clientCacheDetails.setRegisteredClient(registeredClientWithEmptyScope().build());
         doReturn(clientCacheDetails).when(cacheClientUtils).getClientDetails(anyString());
@@ -144,6 +155,9 @@ class ClaimsConfigManagerTest {
      */
     @Test
     void jwtTokenCustomizerForAuthCodeGrantAccessTokenType2() {
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+        
         ClientCacheDetails clientCacheDetails = new ClientCacheDetails();
         clientCacheDetails.setRegisteredClient(registeredClientWithEmptyScope().build());
         doReturn(clientCacheDetails).when(cacheClientUtils).getClientDetails(anyString());
@@ -176,6 +190,9 @@ class ClaimsConfigManagerTest {
      */
     @Test
     void jwtTokenCustomizerForAuthCodeGrantAccessTokenType3() {
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+        
         ClientCacheDetails clientCacheDetails = new ClientCacheDetails();
         clientCacheDetails.setRegisteredClient(registeredClient().build());
         clientCacheDetails.setClientType("multi_role");
@@ -209,6 +226,9 @@ class ClaimsConfigManagerTest {
      */
     @Test
     void jwtTokenCustomizerForAuthCodeGrantAccessTokenType4() {
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+        
         ClientCacheDetails clientCacheDetails = new ClientCacheDetails();
         clientCacheDetails.setRegisteredClient(registeredClient().build());
         clientCacheDetails.setClientType("multi_role");
@@ -241,6 +261,9 @@ class ClaimsConfigManagerTest {
      */
     @Test
     void jwtTokenCustomizerForAuthCodeGrantAccessTokenType5() {
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+        
         ClientCacheDetails clientCacheDetails = new ClientCacheDetails();
         clientCacheDetails.setRegisteredClient(registeredClientWithEmptyScope().build());
         clientCacheDetails.setClientType("multi_role");
@@ -277,6 +300,9 @@ class ClaimsConfigManagerTest {
      */
     @Test
     void jwtTokenCustomizerForAuthCodeGrantAccessTokenType6() {
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+        
         ClientCacheDetails clientCacheDetails = new ClientCacheDetails();
         clientCacheDetails.setRegisteredClient(registeredClientWithEmptyScope().build());
         clientCacheDetails.setClientType("multi_role");
@@ -313,7 +339,17 @@ class ClaimsConfigManagerTest {
      */
     @Test
     void jwtTokenCustomizerForAuthCodeGrantIdTokenType() {
-        doReturn(getUser()).when(userManagementClient).getUserDetailsByUsername(anyString(), anyString());
+        // Mock tenant properties
+        lenient().when(tenantConfigurationService.getTenantProperties()).thenReturn(createMockTenantProperties());
+        
+        // Mock user details response for ID token
+        UserDetailsResponse userDetailsResponse = new UserDetailsResponse();
+        userDetailsResponse.setId("user-id-123");
+        userDetailsResponse.setUserName(TEST_USER_NAME);
+        userDetailsResponse.setAdditionalAttributes(Map.of("firstName", "John", "lastName", "Doe"));
+        
+        doReturn(userDetailsResponse).when(userManagementClient).getUserDetailsByUsername(TEST_USER_NAME,
+                TEST_ACCOUNT_NAME);
 
         RegisteredClient registeredClient = registeredClient().build();
         CustomUserPwdAuthenticationToken principal = new CustomUserPwdAuthenticationToken(TEST_USER_NAME, TEST_PASSWORD,
@@ -341,6 +377,9 @@ class ClaimsConfigManagerTest {
      */
     @Test
     void jwtTokenCustomizerForClientCredsGrantAccessTokenType() {
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+        
         ClientCacheDetails clientCacheDetails = new ClientCacheDetails();
         clientCacheDetails.setRegisteredClient(registeredClient().build());
         clientCacheDetails.setAccountType("Root");
@@ -355,7 +394,6 @@ class ClaimsConfigManagerTest {
                 ClientAuthenticationMethod.CLIENT_SECRET_BASIC, registeredClient.getClientSecret());
         OAuth2ClientCredentialsAuthenticationToken authorizationGrant = new OAuth2ClientCredentialsAuthenticationToken(
                 clientPrincipal, null, null);
-        //doReturn(getClient()).when(authManagementClient).getClientDetails(anyString());
         JwtEncodingContext context = JwtEncodingContext.with(jwsHeader(), jwtClaimsSetWithScope())
                 .registeredClient(registeredClient).principal(clientPrincipal).authorization(authorization)
                 .tokenType(OAuth2TokenType.ACCESS_TOKEN)
@@ -371,6 +409,9 @@ class ClaimsConfigManagerTest {
      */
     @Test
     void jwtTokenCustomizerForClientCredsGrantAccessTokenType2() {
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+        
         ClientCacheDetails clientCacheDetails = new ClientCacheDetails();
         clientCacheDetails.setRegisteredClient(registeredClientWithEmptyScope().build());
         doReturn(clientCacheDetails).when(cacheClientUtils).getClientDetails(anyString());
@@ -381,7 +422,6 @@ class ClaimsConfigManagerTest {
                 ClientAuthenticationMethod.CLIENT_SECRET_BASIC, registeredClient.getClientSecret());
         OAuth2ClientCredentialsAuthenticationToken authorizationGrant = new OAuth2ClientCredentialsAuthenticationToken(
                 clientPrincipal, null, null);
-        //doReturn(getClientWithEmptyScope()).when(authManagementClient).getClientDetails(anyString());
         JwtEncodingContext context = JwtEncodingContext.with(jwsHeader(), jwtClaimsSet())
                 .registeredClient(registeredClient).principal(clientPrincipal).authorization(authorization)
                 .tokenType(OAuth2TokenType.ACCESS_TOKEN)
@@ -397,6 +437,9 @@ class ClaimsConfigManagerTest {
      */
     @Test
     void jwtTokenCustomizerForClientCredsGrantAccessTokenType3() {
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+        
         ClientCacheDetails clientCacheDetails = new ClientCacheDetails();
         clientCacheDetails.setRegisteredClient(registeredClient().build());
         clientCacheDetails.setClientType("multi_role");
@@ -425,6 +468,9 @@ class ClaimsConfigManagerTest {
      */
     @Test
     void jwtTokenCustomizerForClientCredsGrantAccessTokenType4() {
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+        
         ClientCacheDetails clientCacheDetails = new ClientCacheDetails();
         clientCacheDetails.setRegisteredClient(registeredClient().build());
         clientCacheDetails.setClientType("multi_role");
@@ -453,6 +499,9 @@ class ClaimsConfigManagerTest {
      */
     @Test
     void jwtTokenCustomizerForClientCredsGrantAccessTokenType5() {
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+        
         ClientCacheDetails clientCacheDetails = new ClientCacheDetails();
         clientCacheDetails.setRegisteredClient(registeredClient().build());
         clientCacheDetails.setClientType("multi_role");
@@ -480,6 +529,9 @@ class ClaimsConfigManagerTest {
      */
     @Test
     void jwtTokenCustomizerForClientCredsGrantAccessTokenType6() {
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+        
         ClientCacheDetails clientCacheDetails = new ClientCacheDetails();
         clientCacheDetails.setRegisteredClient(registeredClientWithEmptyScope().build());
         clientCacheDetails.setClientType("multi_role");
@@ -510,6 +562,9 @@ class ClaimsConfigManagerTest {
      */
     @Test
     void jwtTokenCustomizerForRefreshGrantAccessTokenType() {
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+        
         ClientCacheDetails clientCacheDetails = new ClientCacheDetails();
         clientCacheDetails.setRegisteredClient(registeredClient().build());
         doReturn(clientCacheDetails).when(cacheClientUtils).getClientDetails(anyString());
@@ -540,6 +595,9 @@ class ClaimsConfigManagerTest {
      */
     @Test
     void jwtTokenCustomizerForExternalIdp() {
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+        
         ClientCacheDetails clientCacheDetails = new ClientCacheDetails();
         clientCacheDetails.setRegisteredClient(registeredClient().build());
         doReturn(clientCacheDetails).when(cacheClientUtils).getClientDetails(anyString());
@@ -569,6 +627,9 @@ class ClaimsConfigManagerTest {
 
     @Test
     void getUserDetailsForFederatedUser_Success() {
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+        
         // Setup
         Map<String, Object> attributes = new HashMap<>();
         attributes.put(ATTRIBUTE_SUB, TEST_USER_NAME);
@@ -576,7 +637,7 @@ class ClaimsConfigManagerTest {
         OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(oauth2User, null, REGISTRATION_ID_GOOGLE);
 
         doReturn(getUser()).when(userManagementClient)
-                .getUserDetailsByUsername(REGISTRATION_ID_GOOGLE + "_" + TEST_USER_NAME, null);
+                .getUserDetailsByUsername("google" + "_" + TEST_USER_NAME, null);
 
         // Execute & Verify
         assertDoesNotThrow(() -> jwtCustomizer.customize(createTestContext(token)));
@@ -584,6 +645,9 @@ class ClaimsConfigManagerTest {
 
     @Test
     void getUserDetailsForFederatedUser_CreateNewUser() {
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+        
         // Setup
         Map<String, Object> attributes = new HashMap<>();
         attributes.put(ATTRIBUTE_SUB, TEST_USER_NAME);
@@ -593,11 +657,11 @@ class ClaimsConfigManagerTest {
                 new OAuth2Error(CustomOauth2TokenGenErrorCodes.USER_NOT_FOUND.name()));
 
         doThrow(userNotFound).doReturn(getUser()).when(userManagementClient)
-                .getUserDetailsByUsername(REGISTRATION_ID_GOOGLE + "_" + TEST_USER_NAME, null);
+                .getUserDetailsByUsername("google" + "_" + TEST_USER_NAME, null);
 
-        doReturn(true).when(claimMappingService).validateClaimCondition(eq(REGISTRATION_ID_GOOGLE), any());
+        doReturn(true).when(claimMappingService).validateClaimCondition(eq("google"), any());
 
-        doReturn(new FederatedUserDto()).when(claimMappingService).mapClaimsToUserRequest(eq(REGISTRATION_ID_GOOGLE),
+        doReturn(new FederatedUserDto()).when(claimMappingService).mapClaimsToUserRequest(eq("google"),
                 any(), any());
         OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(oauth2User, null, REGISTRATION_ID_GOOGLE);
         doReturn(getUser()).when(userManagementClient).createFedratedUser(any());
@@ -608,6 +672,9 @@ class ClaimsConfigManagerTest {
 
     @Test
     void getUserDetailsForFederatedUser_ClaimValidationFails() {
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+        
         // Setup
         Map<String, Object> attributes = new HashMap<>();
         attributes.put(ATTRIBUTE_SUB, TEST_USER_NAME);
@@ -618,40 +685,47 @@ class ClaimsConfigManagerTest {
                 new OAuth2Error(CustomOauth2TokenGenErrorCodes.USER_NOT_FOUND.name()));
 
         doThrow(userNotFound).when(userManagementClient)
-                .getUserDetailsByUsername(REGISTRATION_ID_GOOGLE + "_" + TEST_USER_NAME, null);
+                .getUserDetailsByUsername("google" + "_" + TEST_USER_NAME, null);
 
-        doReturn(false).when(claimMappingService).validateClaimCondition(eq(REGISTRATION_ID_GOOGLE), any());
+        doReturn(false).when(claimMappingService).validateClaimCondition(eq("google"), any());
 
         // Execute & Verify
         OAuth2AuthenticationException exception = assertThrows(OAuth2AuthenticationException.class,
                 () -> customizeToken(token));
 
         assertEquals("invalid_claim_validation", exception.getError().getErrorCode());
-        assertEquals("Claim validation failed for registrationId: " + REGISTRATION_ID_GOOGLE,
+        assertEquals("Claim validation failed for registrationId: google",
                 exception.getError().getDescription());
     }
 
     @Test
     void getUserDetailsForFederatedUser_InvalidIdpConfiguration() {
-        // Setup
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+
+        // Setup - use properly formatted registration ID with invalid provider
         Map<String, Object> attributes = new HashMap<>();
         attributes.put(ATTRIBUTE_SUB, TEST_USER_NAME);
         OAuth2User oauth2User = new DefaultOAuth2User(null, attributes, ATTRIBUTE_SUB);
-        OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(oauth2User, null, "invalid_idp");
+        OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(oauth2User, null, "demo-invalid_idp");
 
         // Execute & Verify
         OAuth2AuthenticationException exception = assertThrows(OAuth2AuthenticationException.class,
                 () -> customizeToken(token));
 
         assertEquals("invalid_idp_configuration", exception.getError().getErrorCode());
-        assertEquals("No external IDP configuration found for: invalid_idp", exception.getError().getDescription());
+        assertEquals("No external IDP configuration found for: demo-invalid_idp",
+                exception.getError().getDescription());
     }
 
     
     @Test
     void findExternalIdpClient_InvalidRegistrationId_ThrowsException() {
-        // Setup
-        String invalidRegistrationId = "invalid_registration_id";
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+        
+        // Setup - use properly formatted registration ID but with invalid provider that doesn't exist in tenant config
+        String invalidRegistrationId = "demo-invalidprovider";  // Valid format, but "invalidprovider" doesn't exist
         Map<String, Object> attributes = new HashMap<>();
         attributes.put(ATTRIBUTE_SUB, TEST_USER_NAME);
         OAuth2User oauth2User = new DefaultOAuth2User(null, attributes, ATTRIBUTE_SUB);
@@ -663,6 +737,26 @@ class ClaimsConfigManagerTest {
 
         assertEquals("invalid_idp_configuration", exception.getError().getErrorCode());
         assertEquals("No external IDP configuration found for: " + invalidRegistrationId, 
+                exception.getError().getDescription());
+    }
+
+    @Test
+    void getUserDetailsForFederatedUser_InvalidRegistrationFormat() {
+        // Mock tenant properties
+        doReturn(createMockTenantProperties()).when(tenantConfigurationService).getTenantProperties();
+
+        // Setup - use improperly formatted registration ID (missing tenant prefix)
+        Map<String, Object> attributes = new HashMap<>();
+        attributes.put(ATTRIBUTE_SUB, TEST_USER_NAME);
+        OAuth2User oauth2User = new DefaultOAuth2User(null, attributes, ATTRIBUTE_SUB);
+        OAuth2AuthenticationToken token = new OAuth2AuthenticationToken(oauth2User, null, "google"); 
+
+        // Execute & Verify
+        OAuth2AuthenticationException exception = assertThrows(OAuth2AuthenticationException.class,
+                () -> customizeToken(token));
+
+        assertEquals("invalid_registration_format", exception.getError().getErrorCode());
+        assertEquals("Registration ID must be in format 'tenant-provider' but was: google",
                 exception.getError().getDescription());
     }
 
@@ -686,4 +780,61 @@ class ClaimsConfigManagerTest {
                 .authorizationGrant(authorizationGrant).build();
     }
 
+    @BeforeEach
+    void setUp() {
+        jwtCustomizer = claimsConfigManager.jwtTokenCustomizer(cacheClientUtils);
+    }
+
+    /**
+     * Helper method to create mock tenant properties for testing.
+     */
+    private TenantProperties createMockTenantProperties() {
+        TenantProperties tenantProperties = new TenantProperties();
+        tenantProperties.setTenantId("demo");  // Updated to match registration ID format "demo-google"
+        
+        // Set up account properties
+        AccountProperties accountProperties = new AccountProperties();
+        accountProperties.setAccountType("Root");
+        accountProperties.setAccountName("ignite");
+        accountProperties.setAccountId("456");
+        tenantProperties.setAccount(accountProperties);
+        
+        // Set up client properties
+        ClientProperties clientProperties = new ClientProperties();
+        tenantProperties.setClient(clientProperties);
+        
+        // Set up user properties
+        UserProperties userProperties = new UserProperties();
+        tenantProperties.setUser(userProperties);
+        
+        // Set up external IDP configurations for the tests
+        tenantProperties.setExternalIdpEnabled(true);
+        tenantProperties.setExternalIdpClientName("federated-user-client");
+        
+       
+        
+        ExternalIdpRegisteredClient googleClient = new ExternalIdpRegisteredClient();
+        googleClient.setClientName("Google");
+        googleClient.setRegistrationId("google");  // Original provider ID, will be prefixed with tenant
+        googleClient.setClientId("mock-google-client-id");
+        googleClient.setClientSecret("mock-google-client-secret");
+        googleClient.setClientAuthenticationMethod("client_secret_basic");
+        googleClient.setScope("openid, profile, email");
+        googleClient.setAuthorizationUri("https://accounts.google.com/o/oauth2/v2/auth");
+        googleClient.setTokenUri("https://www.googleapis.com/oauth2/v4/token");
+        googleClient.setUserInfoUri("https://www.googleapis.com/oauth2/v3/userinfo");
+        googleClient.setUserNameAttributeName("sub");
+        googleClient.setJwkSetUri("https://www.googleapis.com/oauth2/v3/certs");
+        googleClient.setTokenInfoSource("FETCH_INTERNAL_USER");
+        googleClient.setCreateUserMode("CREATE_INTERNAL_USER");
+        googleClient.setDefaultUserRoles(Set.of("VEHICLE_OWNER"));
+        googleClient.setClaimMappings("firstName#given_name,lastName#family_name,email#email");
+        // Create external IDP registered client list for Google
+        java.util.List<ExternalIdpRegisteredClient> externalIdpList =
+                new java.util.ArrayList<>();
+        externalIdpList.add(googleClient);
+        tenantProperties.setExternalIdpRegisteredClientList(externalIdpList);
+        
+        return tenantProperties;
+    }
 }

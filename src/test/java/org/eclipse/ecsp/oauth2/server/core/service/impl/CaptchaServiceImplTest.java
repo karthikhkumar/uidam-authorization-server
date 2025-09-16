@@ -22,21 +22,16 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.CaptchaProperties;
 import org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.TenantProperties;
 import org.eclipse.ecsp.oauth2.server.core.exception.ReCaptchaInvalidException;
+import org.eclipse.ecsp.oauth2.server.core.metrics.AuthorizationMetricsService;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
-import org.springframework.test.context.ContextConfiguration;
-import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.context.junit.jupiter.SpringExtension;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 
-import static org.eclipse.ecsp.oauth2.server.core.common.constants.AuthorizationServerConstants.UIDAM;
 import static org.eclipse.ecsp.oauth2.server.core.test.TestConstants.RECAPTCHA_URL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -48,10 +43,7 @@ import static org.mockito.Mockito.when;
 /**
  * This class tests the functionality of the CaptchaServiceImpl.
  */
-@ExtendWith(SpringExtension.class)
-@EnableConfigurationProperties(value = TenantProperties.class)
-@ContextConfiguration(classes = {TenantConfigurationService.class})
-@TestPropertySource("classpath:application-test.properties")
+@ExtendWith(MockitoExtension.class)
 class CaptchaServiceImplTest {
 
     @InjectMocks
@@ -61,19 +53,21 @@ class CaptchaServiceImplTest {
     private TenantConfigurationService tenantConfigurationService;
 
     @Mock
+    private AuthorizationMetricsService authorizationMetricsService;
+
+    @Mock
     private TenantProperties tenantProperties;
 
-    @MockitoBean
+    @Mock
     private HttpServletRequest httpServletRequest;
 
     /**
      * This method sets up the test environment before each test.
-     * It initializes the mocks and sets the tenant properties.
+     * It initializes the mocks.
      */
     @BeforeEach
     void setup() {
-        when(tenantConfigurationService.getTenantProperties(UIDAM)).thenReturn(tenantProperties);
-        MockitoAnnotations.openMocks(this);
+        // Setup code if needed
     }
 
     /**
@@ -83,6 +77,7 @@ class CaptchaServiceImplTest {
      */
     @Test
     void testWebClientExceptionWhenUnknownHostIsPassed() {
+        when(tenantConfigurationService.getTenantProperties()).thenReturn(tenantProperties);
         when(tenantProperties.getCaptcha()).thenReturn(mock(CaptchaProperties.class));
         when(tenantProperties.getCaptcha().getRecaptchaVerifyUrl()).thenReturn("verifyUrl");
         String recaptchaResponse = "recaptcha";
@@ -112,6 +107,7 @@ class CaptchaServiceImplTest {
      */
     @Test
     void testProcessResponseExceptionWhenRecaptchaNotValidated() {
+        when(tenantConfigurationService.getTenantProperties()).thenReturn(tenantProperties);
         when(tenantProperties.getCaptcha()).thenReturn(mock(CaptchaProperties.class));
         when(tenantProperties.getCaptcha().getRecaptchaVerifyUrl()).thenReturn(RECAPTCHA_URL);
         String recaptchaResponse = "recaptcha";
@@ -126,6 +122,7 @@ class CaptchaServiceImplTest {
      */
     @Test
     void testExceptionWhenValidRecaptchaProps() {
+        when(tenantConfigurationService.getTenantProperties()).thenReturn(tenantProperties);
         when(tenantProperties.getCaptcha()).thenReturn(mock(CaptchaProperties.class));
         when(tenantProperties.getCaptcha().getRecaptchaKeySite()).thenReturn("keySite");
         String reCaptchaSite = captchaService.getReCaptchaSite();

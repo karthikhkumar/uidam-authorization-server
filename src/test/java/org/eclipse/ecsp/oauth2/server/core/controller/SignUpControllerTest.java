@@ -29,6 +29,7 @@ import org.eclipse.ecsp.oauth2.server.core.response.dto.PasswordPolicyResponseDt
 import org.eclipse.ecsp.oauth2.server.core.service.PasswordPolicyService;
 import org.eclipse.ecsp.oauth2.server.core.service.TenantConfigurationService;
 import org.eclipse.ecsp.oauth2.server.core.service.impl.CaptchaServiceImpl;
+import org.eclipse.ecsp.oauth2.server.core.utils.UiAttributeUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
@@ -86,14 +87,18 @@ class SignUpControllerTest {
     @Mock
     private TenantProperties tenantProperties;
 
+    @Mock
+    private UiAttributeUtils uiAttributeUtils;
+
+
     private SignUpController signUpController;
 
     @BeforeEach
     void setUp() {
         MockitoAnnotations.openMocks(this);
-        when(tenantConfigurationService.getTenantProperties(any())).thenReturn(tenantProperties);
+        when(tenantConfigurationService.getTenantProperties()).thenReturn(tenantProperties);
         signUpController = new SignUpController(userManagementClient, tenantConfigurationService,
-                passwordPolicyService);
+                passwordPolicyService, uiAttributeUtils);
     }
 
     private CaptchaProperties defaultCaptchaProperties() {
@@ -107,7 +112,7 @@ class SignUpControllerTest {
     void selfSignUpInit_Success() {
         Model model = new ExtendedModelMap();
         when(tenantProperties.isSignUpEnabled()).thenReturn(false);
-        String viewName = signUpController.selfSignUpInit(model);
+        String viewName = signUpController.selfSignUpInit("ecsp", model);
         assertEquals(SELF_SIGN_UP, viewName);
         assertTrue(model.containsAttribute(IS_SIGN_UP_ENABLED));
         assertTrue(model.containsAttribute(MSG_LITERAL));
@@ -117,7 +122,7 @@ class SignUpControllerTest {
     void userCreated_Success() {
         Model model = new ExtendedModelMap();
         when(tenantProperties.isSignUpEnabled()).thenReturn(false);
-        String viewName = signUpController.userCreated(model);
+        String viewName = signUpController.userCreated("ecsp", model);
         assertEquals(USER_CREATED, viewName);
     }
 
@@ -125,7 +130,7 @@ class SignUpControllerTest {
     void getPrivacyAgreementPage_Success() {
         Model model = new ExtendedModelMap();
         when(tenantProperties.isSignUpEnabled()).thenReturn(false);
-        String viewName = signUpController.getPrivacyAgreementPage(model);
+        String viewName = signUpController.getPrivacyAgreementPage("ecsp", model);
         assertEquals(PRIVACY_AGREEMENT, viewName);
     }
 
@@ -139,8 +144,8 @@ class SignUpControllerTest {
         when(userManagementClient.selfCreateUser(any(UserDto.class), any(HttpServletRequest.class)))
                 .thenReturn(getUserDetailsResponse());
 
-        ModelAndView modelAndView = signUpController.addSelfUser(userDto, request, redirectAttributes);
-        assertEquals(REDIRECT_LITERAL + SELF_SIGN_UP, modelAndView.getViewName());
+        ModelAndView modelAndView = signUpController.addSelfUser("ecsp", userDto, request, redirectAttributes);
+        assertEquals(REDIRECT_LITERAL + "ecsp/" + SELF_SIGN_UP, modelAndView.getViewName());
     }
 
     @Test
@@ -153,8 +158,8 @@ class SignUpControllerTest {
         when(userManagementClient.selfCreateUser(any(UserDto.class), any(HttpServletRequest.class)))
                 .thenReturn(getUserDetailsResponse1());
 
-        ModelAndView modelAndView = signUpController.addSelfUser(userDto, request, redirectAttributes);
-        assertEquals(REDIRECT_LITERAL + SELF_SIGN_UP, modelAndView.getViewName());
+        ModelAndView modelAndView = signUpController.addSelfUser("ecsp", userDto, request, redirectAttributes);
+        assertEquals(REDIRECT_LITERAL + "ecsp/" + SELF_SIGN_UP, modelAndView.getViewName());
     }
 
     @Test
@@ -166,8 +171,8 @@ class SignUpControllerTest {
 
         when(userManagementClient.selfCreateUser(any(UserDto.class), any(HttpServletRequest.class))).thenReturn(null);
 
-        ModelAndView modelAndView = signUpController.addSelfUser(userDto, request, redirectAttributes);
-        assertEquals(REDIRECT_LITERAL + SELF_SIGN_UP, modelAndView.getViewName());
+        ModelAndView modelAndView = signUpController.addSelfUser("ecsp", userDto, request, redirectAttributes);
+        assertEquals(REDIRECT_LITERAL + "ecsp/" + SELF_SIGN_UP, modelAndView.getViewName());
         assertTrue(redirectAttributes.getFlashAttributes().containsKey(ERROR_LITERAL));
     }
 
@@ -181,8 +186,8 @@ class SignUpControllerTest {
         when(userManagementClient.selfCreateUser(any(UserDto.class), any(HttpServletRequest.class)))
                 .thenThrow(new RuntimeException("Exception message"));
 
-        ModelAndView modelAndView = signUpController.addSelfUser(userDto, request, redirectAttributes);
-        assertEquals(REDIRECT_LITERAL + SELF_SIGN_UP, modelAndView.getViewName());
+        ModelAndView modelAndView = signUpController.addSelfUser("ecsp", userDto, request, redirectAttributes);
+        assertEquals(REDIRECT_LITERAL + "ecsp/" + SELF_SIGN_UP, modelAndView.getViewName());
         assertTrue(redirectAttributes.getFlashAttributes().containsKey(ERROR_LITERAL));
     }
 
@@ -206,7 +211,7 @@ class SignUpControllerTest {
             return null;
         }).when(passwordPolicyService).setupPasswordPolicy(any(Model.class), any(Boolean.class));
         Model model = new ExtendedModelMap();
-        String viewName = signUpController.selfSignUpInit(model);
+        String viewName = signUpController.selfSignUpInit("ecsp", model);
         assertEquals(SELF_SIGN_UP, viewName);
         assertTrue(model.containsAttribute(IS_SIGN_UP_ENABLED));
         assertTrue(model.containsAttribute(CAPTCHA_FIELD_ENABLED));
@@ -247,7 +252,7 @@ class SignUpControllerTest {
         }).when(passwordPolicyService).setupPasswordPolicy(any(Model.class), any(Boolean.class));
         Model model = new ExtendedModelMap();
         model.addAttribute(ERROR_LITERAL, "error");
-        String viewName = signUpController.selfSignUpInit(model);
+        String viewName = signUpController.selfSignUpInit("ecsp", model);
 
         assertEquals(SELF_SIGN_UP, viewName);
         assertTrue(model.containsAttribute(IS_SIGN_UP_ENABLED));
@@ -281,7 +286,7 @@ class SignUpControllerTest {
         }).when(passwordPolicyService).setupPasswordPolicy(any(Model.class), any(Boolean.class));
         Model model = new ExtendedModelMap();
         model.addAttribute(ERROR_LITERAL, "error");
-        signUpController.selfSignUpInit(model);
+        signUpController.selfSignUpInit("ecsp", model);
         assertTrue(model.containsAttribute(IS_SIGN_UP_ENABLED));
         assertTrue(model.containsAttribute(CAPTCHA_FIELD_ENABLED));
         assertTrue(model.containsAttribute(CAPTCHA_SITE));
@@ -305,7 +310,7 @@ class SignUpControllerTest {
         when(tenantProperties.isSignUpEnabled()).thenReturn(false);
 
         Model model = new ExtendedModelMap();
-        String viewName = signUpController.selfSignUpInit(model);
+        String viewName = signUpController.selfSignUpInit("ecsp", model);
 
         assertEquals(SELF_SIGN_UP, viewName);
         assertTrue(model.containsAttribute(IS_SIGN_UP_ENABLED));
@@ -333,7 +338,7 @@ class SignUpControllerTest {
             return null;
         }).when(passwordPolicyService).setupPasswordPolicy(any(Model.class), any(Boolean.class));
         Model model = new ExtendedModelMap();
-        String viewName = signUpController.selfSignUpInit(model);
+        String viewName = signUpController.selfSignUpInit("ecsp", model);
         assertEquals(SELF_SIGN_UP, viewName);
         assertTrue(model.containsAttribute(IS_SIGN_UP_ENABLED));
         assertTrue(model.containsAttribute(CAPTCHA_FIELD_ENABLED));
@@ -384,7 +389,7 @@ class SignUpControllerTest {
         when(tenantProperties.getCaptcha()).thenReturn(defaultCaptchaProperties());
         Model model = new ExtendedModelMap();
 
-        String viewName = signUpController.selfSignUpInit(model);
+        String viewName = signUpController.selfSignUpInit("ecsp", model);
 
         assertEquals(SELF_SIGN_UP, viewName);
         assertTrue(model.containsAttribute(IS_SIGN_UP_ENABLED));
@@ -401,7 +406,7 @@ class SignUpControllerTest {
         when(tenantProperties.isSignUpEnabled()).thenReturn(false);
         Model model = new ExtendedModelMap();
 
-        String viewName = signUpController.selfSignUpInit(model);
+        String viewName = signUpController.selfSignUpInit("ecsp", model);
 
         assertEquals(SELF_SIGN_UP, viewName);
         assertTrue(model.containsAttribute(IS_SIGN_UP_ENABLED));
