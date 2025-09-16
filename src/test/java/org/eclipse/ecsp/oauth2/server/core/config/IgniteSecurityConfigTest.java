@@ -26,7 +26,6 @@ import org.eclipse.ecsp.oauth2.server.core.authentication.handlers.CustomAuthCod
 import org.eclipse.ecsp.oauth2.server.core.authentication.handlers.FederatedIdentityAuthenticationSuccessHandler;
 import org.eclipse.ecsp.oauth2.server.core.authentication.providers.CustomUserPwdAuthenticationProvider;
 import org.eclipse.ecsp.oauth2.server.core.authentication.validator.CustomScopeValidator;
-import org.eclipse.ecsp.oauth2.server.core.metrics.AuthorizationMetricsService;
 import org.eclipse.ecsp.oauth2.server.core.repositories.AuthorizationRequestRepository;
 import org.eclipse.ecsp.oauth2.server.core.repositories.AuthorizationSecurityContextRepository;
 import org.eclipse.ecsp.oauth2.server.core.service.DatabaseSecurityContextRepository;
@@ -108,8 +107,6 @@ class IgniteSecurityConfigTest {
 
     @Mock
     private HttpSession session;
-
-    private AuthorizationMetricsService authorizationMetricsService;
 
     private IgniteSecurityConfig config;
 
