@@ -415,6 +415,65 @@ class SignUpControllerTest {
         verify(passwordPolicyService, times(0)).setupPasswordPolicy(model, false);
     }
 
+    @Test
+    void selfSignUpInit_WithValidTermsPrivacyPolicyUrl_SetsUrlInModel() {
+        when(tenantProperties.isSignUpEnabled()).thenReturn(true);
+        
+        // Mock UI properties with valid URL
+        org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.UiProperties uiProperties = 
+            new org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.UiProperties();
+        uiProperties.setTermsPrivacyPolicy("https://example.com/terms-privacy");
+        when(tenantProperties.getUi()).thenReturn(uiProperties);
+        when(tenantProperties.getCaptcha()).thenReturn(defaultCaptchaProperties());
+        
+        Model model = new ExtendedModelMap();
+
+        String viewName = signUpController.selfSignUpInit("ecsp", model);
+
+        assertEquals(SELF_SIGN_UP, viewName);
+        assertTrue(model.containsAttribute("termsPrivacyPolicy"));
+        assertEquals("https://example.com/terms-privacy", model.getAttribute("termsPrivacyPolicy"));
+    }
+
+    @Test
+    void selfSignUpInit_WithInvalidTermsPrivacyPolicyUrl_SetsEmptyStringInModel() {
+        when(tenantProperties.isSignUpEnabled()).thenReturn(true);
+        
+        // Mock UI properties with invalid URL
+        org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.UiProperties uiProperties = 
+            new org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.UiProperties();
+        uiProperties.setTermsPrivacyPolicy("invalid-url");
+        when(tenantProperties.getUi()).thenReturn(uiProperties);
+        when(tenantProperties.getCaptcha()).thenReturn(defaultCaptchaProperties());
+        
+        Model model = new ExtendedModelMap();
+
+        String viewName = signUpController.selfSignUpInit("ecsp", model);
+
+        assertEquals(SELF_SIGN_UP, viewName);
+        assertTrue(model.containsAttribute("termsPrivacyPolicy"));
+        assertEquals("", model.getAttribute("termsPrivacyPolicy"));
+    }
+
+    @Test
+    void selfSignUpInit_WithoutTermsPrivacyPolicyUrl_SetsEmptyStringInModel() {
+        when(tenantProperties.isSignUpEnabled()).thenReturn(true);
+        
+        // Mock UI properties without terms privacy policy URL
+        org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.UiProperties uiProperties = 
+            new org.eclipse.ecsp.oauth2.server.core.config.tenantproperties.UiProperties();
+        when(tenantProperties.getUi()).thenReturn(uiProperties);
+        when(tenantProperties.getCaptcha()).thenReturn(defaultCaptchaProperties());
+        
+        Model model = new ExtendedModelMap();
+
+        String viewName = signUpController.selfSignUpInit("ecsp", model);
+
+        assertEquals(SELF_SIGN_UP, viewName);
+        assertTrue(model.containsAttribute("termsPrivacyPolicy"));
+        assertEquals("", model.getAttribute("termsPrivacyPolicy"));
+    }
+
     private UserDetailsResponse getUserDetailsResponse1() {
         UserDetailsResponse userDetailsResponse = new UserDetailsResponse();
         userDetailsResponse.setEmail("test@example.com");

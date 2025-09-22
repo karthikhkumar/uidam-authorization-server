@@ -108,6 +108,8 @@ public class SignUpController {
         if (tenantProperties.isSignUpEnabled()) {
             setupCaptcha(model);
             passwordPolicyService.setupPasswordPolicy(model, false);
+            // Add terms privacy policy URL if configured
+            addTermsPrivacyPolicyUrl(model, tenantProperties);
         } else {
             model.addAttribute(MSG_LITERAL, SIGN_UP_NOT_ENABLED);
         }
@@ -174,14 +176,15 @@ public class SignUpController {
                                     HttpServletRequest request,
                                     RedirectAttributes redirectAttributes) {
         LOGGER.info("## addSelfUser - START");
-        boolean reqParametersPresent = checkForReqParameters(userDto, obtainRecaptchaResponse(request));
+        TenantProperties tenantProperties = tenantConfigurationService.getTenantProperties();
+        boolean reqParametersPresent = checkForReqParameters(userDto, obtainRecaptchaResponse(request),
+            request, tenantProperties);
         if (!reqParametersPresent) {
             LOGGER.error("Required parameters are missing");
             redirectAttributes.addFlashAttribute(ERROR_LITERAL, ADD_REQ_PAR);
             return new ModelAndView(REDIRECT_LITERAL + tenantId + "/" + SELF_SIGN_UP);
         }
         LOGGER.debug("Adding self user with username: {}", userDto.getFirstName());
-        TenantProperties tenantProperties = tenantConfigurationService.getTenantProperties();
         if (tenantProperties.isSignUpEnabled()) {
             try {
                 UserDetailsResponse userDetailsResponse = userManagementClient.selfCreateUser(userDto, request);
@@ -197,11 +200,9 @@ public class SignUpController {
                     } else {
                         redirectAttributes.addFlashAttribute(MSG_LITERAL,
                                 AuthorizationServerConstants.EMAIL_SENT_PREFIX
-                                        + userDetailsResponse.getEmail()
-                                        +
-                                        "\n"
-                                        +
-                                        EMAIL_SENT_SUFFIX);
+                                + userDetailsResponse.getEmail()
+                                + "\n"
+                                + EMAIL_SENT_SUFFIX);
                     }
                     return new ModelAndView(REDIRECT_LITERAL  + tenantId + "/" + USER_CREATED);
                 }
@@ -217,10 +218,58 @@ public class SignUpController {
         }
     }
 
-    private boolean checkForReqParameters(UserDto userDto, String recaptchaResp) {
-        return StringUtils.hasText(userDto.getFirstName())
-                && StringUtils.hasText(userDto.getEmail())
-                && StringUtils.hasText(userDto.getPassword())
-                && StringUtils.hasText(recaptchaResp);
+    private boolean checkForReqParameters(UserDto userDto, String recaptchaResp, HttpServletRequest request,
+        TenantProperties tenantProperties) {
+        boolean basicValidation = StringUtils.hasText(userDto.getFirstName())
+            && StringUtils.hasText(userDto.getEmail())
+            && StringUtils.hasText(userDto.getPassword())
+            && StringUtils.hasText(recaptchaResp);
+        // Check terms acceptance only if termsPrivacyPolicy is configured
+        boolean termsAccepted = true; // Default to true when no terms required
+        if (tenantProperties.getUi() != null
+            && StringUtils.hasText(tenantProperties.getUi().getTermsPrivacyPolicy())
+            && isValidUrl(tenantProperties.getUi().getTermsPrivacyPolicy())) {
+            // Terms checkbox is required when termsPrivacyPolicy is configured
+            String termsCheckboxValue = request.getParameter("termsCheckbox");
+            termsAccepted = "on".equals(termsCheckboxValue);
+        }
+        return basicValidation && termsAccepted;
+    }
+
+    /**
+     * Adds the terms privacy policy URL to the model if configured and valid.
+     *
+     * @param model the model to add attributes to
+     * @param tenantProperties the tenant properties
+     */
+    private void addTermsPrivacyPolicyUrl(Model model, TenantProperties tenantProperties) {
+        String termsPrivacyPolicyUrl = "";
+        
+        if (tenantProperties.getUi() != null
+            && StringUtils.hasText(tenantProperties.getUi().getTermsPrivacyPolicy())) {
+            String url = tenantProperties.getUi().getTermsPrivacyPolicy();
+            if (isValidUrl(url)) {
+                termsPrivacyPolicyUrl = url;
+            } else {
+                LOGGER.warn("Invalid terms privacy policy URL configured for tenant: {}", url);
+            }
+        }
+        
+        model.addAttribute("termsPrivacyPolicy", termsPrivacyPolicyUrl);
+    }
+
+    /**
+     * Validates if the provided string is a valid URL.
+     *
+     * @param url the URL string to validate
+     * @return true if valid URL, false otherwise
+     */
+    private boolean isValidUrl(String url) {
+        try {
+            new java.net.URL(url);
+            return true;
+        } catch (java.net.MalformedURLException e) {
+            return false;
+        }
     }
 }
